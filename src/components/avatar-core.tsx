@@ -29,9 +29,14 @@ const AvatarCore = () => {
   const [speechRecognitionAvailable, setSpeechRecognitionAvailable] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const speak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
@@ -254,6 +259,10 @@ const AvatarCore = () => {
     stopSpeaking();
   };
 
+  if (!isClient) {
+    return null;
+  }
+
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden">
       <AvatarHeader isSpeaking={isSpeaking} openSettings={() => setShowSettingsPanel(true)} />
@@ -296,5 +305,3 @@ const AvatarCore = () => {
 };
 
 export default AvatarCore;
-
-    

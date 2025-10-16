@@ -134,13 +134,16 @@ const SettingsPanel = ({
 
         <div className="mb-6">
           <label className="text-cyan-300 text-sm font-medium mb-2 block">
-            Custom Ready Player Me ID
+            Custom Ready Player Me Avatar
           </label>
+          <p className="text-cyan-300/70 text-xs mb-2">
+            Enter the subdomain from your avatar's share URL.
+          </p>
           <input
             type="text"
             value={tempSettings.avatarUrl}
             onChange={(e) => setTempSettings({...tempSettings, avatarUrl: e.target.value})}
-            placeholder="Enter avatar ID..."
+            placeholder="Enter avatar subdomain..."
             className="w-full bg-slate-800 border border-cyan-400/30 rounded-xl px-4 py-2 text-white placeholder-cyan-300/40 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-300"
           />
           <p className="text-cyan-300/70 text-xs mt-2">
@@ -178,5 +181,3 @@ const SettingsPanel = ({
 };
 
 export default SettingsPanel;
-
-    
