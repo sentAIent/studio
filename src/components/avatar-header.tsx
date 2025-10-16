@@ -1,8 +1,10 @@
 "use client";
 
-import { Settings, Sparkles, LogOut } from "lucide-react";
+import { Settings, Sparkles, LogOut, Plane } from "lucide-react";
 import { useAuth as useFirebaseAuth } from "@/firebase";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "./ui/button";
 
 type AvatarHeaderProps = {
   isSpeaking: boolean;
@@ -29,7 +31,7 @@ const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
             AI Avatar Assistant
           </h1>
           <p className="text-cyan-300 text-xs md:text-sm">
-            Conversational • Marketing • Podcasts
+            Your personal conversational AI
           </p>
         </div>
       </div>
@@ -42,6 +44,12 @@ const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
             </span>
           </div>
         )}
+         <Button asChild variant="outline" className="hidden sm:flex bg-transparent text-cyan-300 border-cyan-400/30 hover:bg-cyan-500/20 hover:text-cyan-200">
+          <Link href="/itinerary">
+            <Plane className="w-4 h-4 mr-2" />
+            View Itinerary
+          </Link>
+        </Button>
         <button
           onClick={openSettings}
           className="p-2 bg-cyan-500/20 hover:bg-cyan-500/40 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/20"
