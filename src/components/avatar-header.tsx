@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Settings, Sparkles, LogOut, Plane, ChevronDown } from "lucide-react";
+import { Settings, Sparkles, LogOut, Plane, ChevronDown, Home, ShoppingCart, Users, Package, BarChart, LifeBuoy } from "lucide-react";
 import { useAuth as useFirebaseAuth } from "@/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -11,6 +11,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 type AvatarHeaderProps = {
@@ -60,9 +61,53 @@ const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent className="bg-slate-900 border-cyan-400/30 text-white">
             <DropdownMenuItem asChild>
+              <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer">
+                <Home className="w-4 h-4" />
+                Dashboard
+              </Link>
+            </DropdownMenuItem>
+             <DropdownMenuItem asChild>
               <Link href="/itinerary" className="flex items-center gap-2 cursor-pointer">
                 <Plane className="w-4 h-4" />
-                View Itinerary
+                Itinerary
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/orders" className="flex items-center gap-2 cursor-pointer">
+                <ShoppingCart className="w-4 h-4" />
+                Orders
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/customers" className="flex items-center gap-2 cursor-pointer">
+                <Users className="w-4 h-4" />
+                Customers
+              </Link>
+            </DropdownMenuItem>
+             <DropdownMenuItem asChild>
+              <Link href="/products" className="flex items-center gap-2 cursor-pointer">
+                <Package className="w-4 h-4" />
+                Products
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/analytics" className="flex items-center gap-2 cursor-pointer">
+                <BarChart className="w-4 h-4" />
+                Analytics
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+             <DropdownMenuItem asChild>
+              <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+                <Settings className="w-4 h-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
+             <DropdownMenuItem asChild>
+              <Link href="/help" className="flex items-center gap-2 cursor-pointer">
+                <LifeBuoy className="w-4 h-4" />
+                Help & Support
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
