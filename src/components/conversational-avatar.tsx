@@ -119,23 +119,28 @@ const ConversationalAvatar = () => {
       recognitionRef.current.lang = 'en-US';
 
       recognitionRef.current.onstart = () => setIsListening(true);
-      recognitionRef.current.onend = () => setIsListening(false);
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
       
       recognitionRef.current.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        setMessage(transcript);
         setVoiceError('');
         handleSendMessage(transcript);
       };
 
       recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
+        console.error("Speech recognition error:", event.error, event.message);
         setIsListening(false);
         let errorMsg = `An error occurred: ${event.error}.`;
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings.";
+          errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings and try again.";
         } else if (event.error === 'no-speech') {
-          errorMsg = "No speech detected. Please try again.";
+          errorMsg = "No speech detected. Please make sure your microphone is working and try again.";
+        } else if (event.error === 'network') {
+          errorMsg = "Network error. Please check your internet connection and try again.";
+        } else if (event.error === 'audio-capture') {
+          errorMsg = "Audio capture error. Your microphone might be in use by another application.";
         }
         setVoiceError(errorMsg);
       };
@@ -160,19 +165,32 @@ const ConversationalAvatar = () => {
     const textToSend = messageText || message;
     if (!textToSend.trim()) return;
 
+    // Stop listening if we were
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+
     const userMessage: Message = { role: "user", content: textToSend };
     setConversation((prev) => [...prev, userMessage]);
     setMessage("");
     setAvatarMood("thinking");
     setIsProcessing(true);
 
-    const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
-    
-    const assistantMessage: Message = { role: "assistant", content: aiResponse };
-    setConversation((prev) => [...prev, assistantMessage]);
-    speak(aiResponse);
-    setIsProcessing(false);
-    setAvatarMood("neutral");
+    try {
+      const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
+      
+      const assistantMessage: Message = { role: "assistant", content: aiResponse };
+      setConversation((prev) => [...prev, assistantMessage]);
+      speak(aiResponse);
+    } catch(e) {
+      console.error(e);
+      const assistantMessage: Message = { role: "assistant", content: "Sorry, I had trouble generating a response." };
+      setConversation((prev) => [...prev, assistantMessage]);
+      speak(assistantMessage.content);
+    } finally {
+      setIsProcessing(false);
+      setAvatarMood("neutral");
+    }
   };
 
   const toggleListening = () => {
@@ -189,7 +207,12 @@ const ConversationalAvatar = () => {
         recognitionRef.current.start();
       } catch (error) {
         console.error("Could not start recognition:", error);
-        setVoiceError("Could not start voice recognition. It might be already active or an error occurred.");
+        if (error instanceof Error && error.name === 'InvalidStateError') {
+            // Already listening, so we stop it.
+            recognitionRef.current.stop();
+        } else {
+            setVoiceError("Could not start voice recognition. It might be already active or an error occurred.");
+        }
       }
     }
   };
