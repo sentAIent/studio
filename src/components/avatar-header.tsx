@@ -1,10 +1,17 @@
+
 "use client";
 
-import { Settings, Sparkles, LogOut, Plane } from "lucide-react";
+import { Settings, Sparkles, LogOut, Plane, ChevronDown } from "lucide-react";
 import { useAuth as useFirebaseAuth } from "@/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type AvatarHeaderProps = {
   isSpeaking: boolean;
@@ -44,12 +51,22 @@ const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
             </span>
           </div>
         )}
-         <Button asChild variant="outline" className="hidden sm:flex bg-transparent text-cyan-300 border-cyan-400/30 hover:bg-cyan-500/20 hover:text-cyan-200">
-          <Link href="/itinerary">
-            <Plane className="w-4 h-4 mr-2" />
-            View Itinerary
-          </Link>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="bg-transparent text-cyan-300 border-cyan-400/30 hover:bg-cyan-500/20 hover:text-cyan-200">
+              Pages
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-slate-900 border-cyan-400/30 text-white">
+            <DropdownMenuItem asChild>
+              <Link href="/itinerary" className="flex items-center gap-2 cursor-pointer">
+                <Plane className="w-4 h-4" />
+                View Itinerary
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <button
           onClick={openSettings}
           className="p-2 bg-cyan-500/20 hover:bg-cyan-500/40 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/20"
