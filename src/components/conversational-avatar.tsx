@@ -136,9 +136,12 @@ const ConversationalAvatar = () => {
         } else if (event.error === 'audio-capture') {
           errorMsg = "Audio capture error. Your microphone might be in use by another application.";
         } else if (event.error === 'aborted') {
-          errorMsg = "Voice input was aborted. If you didn't stop it, this might be a browser issue.";
+          // This can be triggered by the user stopping the recognition, so we don't always show an error.
+          // errorMsg = "Voice input was aborted.";
         }
-        setVoiceError(errorMsg);
+        if (event.error !== 'aborted') {
+            setVoiceError(errorMsg);
+        }
         setIsListening(false);
       };
       
@@ -168,6 +171,7 @@ const ConversationalAvatar = () => {
 
     if (isListening) {
       recognitionRef.current?.stop();
+      setIsListening(false);
     }
 
     const userMessage: Message = { role: "user", content: textToSend };
@@ -207,13 +211,12 @@ const ConversationalAvatar = () => {
         recognitionRef.current.start();
       } catch (error: any) {
         console.error("Could not start recognition:", error);
-        if (error.name === 'InvalidStateError') {
-          // This can happen if start() is called while it's already starting.
-          // We can try to reset it.
-          setIsListening(false);
-        } else {
-          setVoiceError("Could not start voice recognition. Please check browser permissions and ensure your microphone is not in use.");
-        }
+         let errorMsg = "Could not start voice recognition. Please check browser permissions and ensure your microphone is not in use.";
+         if (error.name === 'InvalidStateError') {
+           errorMsg = "Please wait a moment before trying again. The voice recognition service is still closing from the last use.";
+         }
+        setVoiceError(errorMsg);
+        setIsListening(false);
       }
     }
   };
