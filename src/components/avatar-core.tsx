@@ -159,40 +159,38 @@ const AvatarCore = () => {
   const handleSendMessage = useCallback(async (messageText?: string) => {
     const textToSend = messageText || message;
     if (!textToSend.trim() || isProcessing) return;
-
+  
     setMessage("");
     setIsProcessing(true);
     setAvatarMood("thinking");
   
     const userMessage: Message = { role: "user", content: textToSend };
-    // Optimistically update UI
-    setConversation(prev => [...prev, userMessage]);
+    const currentConversation = [...conversation, userMessage];
   
-    try {
-        const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
-        const assistantMessage: Message = { role: "assistant", content: aiResponse };
-        
-        // Save messages to Firestore
-        if (firestore && conversationColRef && currentConversationId) {
-            const messagesRef = collection(firestore, conversationColRef.path, currentConversationId, 'messages');
-            // USE NON-BLOCKING
-            addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
-            addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
-        }
-        
-        // The snapshot listener will update the conversation state.
-        
-        speak(aiResponse);
-
-    } catch(e) {
-      console.error(e);
-      const errorMessage = { role: "assistant", content: "Sorry, I had trouble generating a response." } as Message;
-      setConversation(prev => [...prev.slice(0, -1), userMessage, errorMessage]);
-      speak(errorMessage.content);
-    } finally {
-      setIsProcessing(false);
-      // Let speak() control the mood, so we don't prematurely set it to neutral
+    // Optimistically update UI
+    setConversation(currentConversation);
+  
+    const aiResponse = await getAiResponse(currentConversation, textToSend);
+    const assistantMessage: Message = { role: "assistant", content: aiResponse };
+  
+    // Save messages to Firestore (non-blocking)
+    if (firestore && conversationColRef && currentConversationId) {
+      const messagesRef = collection(
+        firestore,
+        conversationColRef.path,
+        currentConversationId,
+        'messages'
+      );
+      addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
+      addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
     }
+  
+    // The snapshot listener will eventually update the conversation state from Firestore,
+    // but we can speak the response immediately.
+    speak(aiResponse);
+    setIsProcessing(false);
+    // The 'talking' mood is set in speak(), and will be set to 'neutral' when speech ends.
+  
   }, [message, isProcessing, conversation, speak, firestore, conversationColRef, currentConversationId]);
 
 
@@ -342,5 +340,3 @@ const AvatarCore = () => {
 };
 
 export default AvatarCore;
-
-    

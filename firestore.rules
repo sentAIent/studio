@@ -1,129 +1,116 @@
 /**
- * @fileoverview Firestore Security Rules for AvatarSpeak application.
- *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for all data. Each user can only access their own profile, avatar settings, and conversations.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model, where each user can only access their own data.
  *
  * Data Structure:
- * The data is organized under the /users/{userId} path, with subcollections for avatarSettings and conversations. This structure ensures that all user-specific data is neatly contained and access-controlled.
+ * All data is nested under /users/{userId}, ensuring clear ownership. User profiles, avatar settings, and conversations are all stored as subcollections under the user's document.
  *
  * Key Security Decisions:
- * - Users can only access their own data. No cross-user data access is allowed unless explicitly specified in future requirements.
- * - `list` operations are restricted to the owner of the data, preventing unauthorized enumeration of user data.
+ * - User listing is disallowed to protect user privacy.
+ * - All write operations are restricted to the authenticated user, based on their UID.
  *
  * Denormalization for Authorization:
- *  - The `userId` is encoded in the path, so the rules can use the `isOwner(userId)` function for authorization checks without needing to read the document data.
+ * - The data model uses path-based authorization, so data denormalization is not required because ownership is implicitly determined by the document path.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Defines a global function to check if a user is signed in.
-     * @returns {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Defines a global function to check if the request is made by the owner of the resource.
-     * @param {string} userId - The user ID to compare with the request's authentication UID.
-     * @returns {boolean} True if the user ID matches the request's authentication UID, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Defines a global function to check if the user is the owner of an existing document.
-     * @param {string} userId - The user ID to compare with the request's authentication UID.
-     * @returns {boolean} True if the user ID matches the request's authentication UID and the document exists.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Secures the user profiles, ensuring only the authenticated user can read/write their own profile.
+     * @description Controls access to user profiles.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' creates their profile.
-     *    - auth.uid: 'user123'
-     *    - request.resource.data.id: 'user123'
-     * @allow (get) User with ID 'user123' reads their profile.
-     *    - auth.uid: 'user123'
-     * @allow (update) User with ID 'user123' updates their profile.
-     *    - auth.uid: 'user123'
-     * @allow (delete) User with ID 'user123' deletes their profile.
-     *    - auth.uid: 'user123'
-     * @deny  (create) User with ID 'user123' tries to create a profile for 'otherUser'.
-     *    - auth.uid: 'user123'
-     *    - request.resource.data.id: 'otherUser'
-     * @deny (get) User with ID 'user456' tries to read profile of user 'user123'.
-     *    - auth.uid: 'user456'
-     * @principle Enforces document ownership for all operations.
+     * @allow (create) - If the user is creating their own profile (userId matches auth.uid).
+     * @allow (get, update, delete) - If the user is accessing their own profile (userId matches auth.uid) and the document exists.
+     * @deny (create) - If the user tries to create a profile with an ID that doesn't match their auth.uid.
+     * @deny (get, update, delete) - If the user tries to access someone else's profile (userId doesn't match auth.uid), or if the document doesn't exist during update or delete.
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Listing all users is not permitted
+      // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the EXISTING document
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures avatar settings for each user, ensuring only the user can access their own settings.
+     * @description Controls access to avatar settings for a user.
      * @path /users/{userId}/avatarSettings/{avatarSettingId}
-     * @allow (create) User 'user123' creates an avatar setting.
-     *    - auth.uid: 'user123'
-     *    - request.resource.data.userId: 'user123'
-     * @allow (get) User 'user123' reads their avatar setting.
-     *    - auth.uid: 'user123'
-     * @allow (update) User 'user123' updates their avatar setting.
-     *    - auth.uid: 'user123'
-     * @allow (delete) User 'user123' deletes their avatar setting.
-     *    - auth.uid: 'user123'
-     * @deny  (create) User 'user123' tries to create an avatar setting for 'otherUser'.
-     *    - auth.uid: 'user123'
-     *    - request.resource.data.userId: 'otherUser'
-     * @deny (get) User 'user456' tries to read avatar setting of user 'user123'.
-     *    - auth.uid: 'user456'
-     * @principle Enforces path-based ownership for avatar settings.
+     * @allow (create) - If the user is creating avatar settings under their own profile path.
+     * @allow (get, update, delete) - If the user is accessing avatar settings under their own profile path and the document exists.
+     * @deny (create) - If the user attempts to create avatar settings under someone else's profile.
+     * @deny (get, update, delete) - If the user attempts to access avatar settings under someone else's profile or if the document doesn't exist during update or delete.
+     * @principle Restricts access to a user's own avatar settings based on path-based ownership.
      */
     match /users/{userId}/avatarSettings/{avatarSettingId} {
+      // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the EXISTING document
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
 
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Secures conversations for each user, ensuring only the user can access their own conversations.
+     * @description Controls access to conversations for a user.
      * @path /users/{userId}/conversations/{conversationId}
-     * @allow (create) User 'user123' creates a conversation.
-     *    - auth.uid: 'user123'
-     *    - request.resource.data.userId: 'user123'
-     * @allow (get) User 'user123' reads their conversation.
-     *    - auth.uid: 'user123'
-     * @allow (update) User 'user123' updates their conversation.
-     *    - auth.uid: 'user123'
-     * @allow (delete) User 'user123' deletes their conversation.
-     *    - auth.uid: 'user123'
-     * @deny  (create) User 'user123' tries to create a conversation for 'otherUser'.
-     *    - auth.uid: 'user123'
-     *    - request.resource.data.userId: 'otherUser'
-     * @deny (get) User 'user456' tries to read conversation of user 'user123'.
-     *    - auth.uid: 'user456'
-     * @principle Enforces path-based ownership for conversations.
+     * @allow (create) - If the user is creating a conversation under their own profile path.
+     * @allow (get, update, delete) - If the user is accessing a conversation under their own profile path and the document exists.
+     * @deny (create) - If the user attempts to create a conversation under someone else's profile.
+     * @deny (get, update, delete) - If the user attempts to access a conversation under someone else's profile, or if the document doesn't exist during update or delete.
+     * @principle Restricts access to a user's own conversations based on path-based ownership.
      */
     match /users/{userId}/conversations/{conversationId} {
+      // Helper function to check if the user is signed in
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the document
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Helper function to check if the authenticated user is the owner of the EXISTING document
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
 
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
