@@ -170,24 +170,22 @@ const AvatarCore = () => {
         const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
         const assistantMessage: Message = { role: "assistant", content: aiResponse };
         
-        // Save messages to Firestore (optimistic UI update already done)
+        // Save messages to Firestore
         if (firestore && conversationColRef && currentConversationId) {
             const messagesRef = collection(firestore, conversationColRef.path, currentConversationId, 'messages');
-            addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
-            addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
-
-            // We only update the conversation state after the AI response is back
-            // to avoid showing a message that hasn't been persisted yet.
-            // The onSnapshot listener will eventually pick up the change, but this is faster.
-            setConversation(prev => [...prev, assistantMessage]);
+            await addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
+            await addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
         }
+        
+        // Update local state after successful save, snapshot listener will catch up but this is faster
+        setConversation(prev => [...prev.slice(0, -1), userMessage, assistantMessage]);
         
         speak(aiResponse);
 
     } catch(e) {
       console.error(e);
       const errorMessage = { role: "assistant", content: "Sorry, I had trouble generating a response." } as Message;
-      setConversation(prev => [...prev, errorMessage]);
+      setConversation(prev => [...prev.slice(0, -1), userMessage, errorMessage]);
       speak(errorMessage.content);
     } finally {
       setIsProcessing(false);
@@ -195,13 +193,14 @@ const AvatarCore = () => {
     }
   }, [message, isProcessing, conversation, speak, firestore, conversationColRef, currentConversationId]);
 
+
   const handleTranscript = useCallback((transcript: string) => {
-      if (transcript) {
-        handleSendMessage(transcript);
-      }
-      setIsListening(false);
+    if (transcript) {
+      handleSendMessage(transcript);
+    }
+    setIsListening(false);
   }, [handleSendMessage]);
-  
+
   useEffect(() => {
     const recognitionAvailable = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
     setSpeechRecognitionAvailable(recognitionAvailable);
@@ -217,7 +216,7 @@ const AvatarCore = () => {
     const recognition = recognitionRef.current;
     
     recognition.lang = 'en-US';
-    recognition.continuous = false; // Process after a single utterance
+    recognition.continuous = false;
     recognition.interimResults = false;
     
     recognition.onstart = () => {
@@ -336,5 +335,3 @@ const AvatarCore = () => {
 };
 
 export default AvatarCore;
-
-    
