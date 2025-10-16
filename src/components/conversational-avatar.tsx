@@ -12,6 +12,7 @@ import SettingsPanel from "./settings-panel";
 
 const ConversationalAvatar = () => {
   const [isMounted, setIsMounted] = useState(false);
+  
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
     avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
     volume: 1.0,
@@ -151,19 +152,12 @@ const ConversationalAvatar = () => {
 
     if (hasSpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-                finalTranscript += event.results[i][0].transcript;
-            }
-        }
-        if (finalTranscript) {
-          handleSendMessage(finalTranscript.trim());
+        const transcript = event.results[event.results.length - 1][0].transcript.trim();
+        if (transcript) {
+          handleSendMessage(transcript);
         }
       };
 
