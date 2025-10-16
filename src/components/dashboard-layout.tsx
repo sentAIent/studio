@@ -28,7 +28,7 @@ import {
   Sparkles,
   LogOut,
 } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/hooks/use-pathname';
 import { useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
