@@ -11,7 +11,7 @@ import SettingsPanel from "./settings-panel";
 
 const AvatarCore = () => {
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
-    avatarUrl: "669eb9e7f8640d7c570e67f0",
+    avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
     volume: 1.0,
     speechRate: 1.0,
     voiceName: null,

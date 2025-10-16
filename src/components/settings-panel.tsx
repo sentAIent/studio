@@ -15,7 +15,6 @@ type SettingsPanelProps = {
 };
 
 const presetAvatars: PresetAvatar[] = [
-    { name: 'Cyberpunk Visionary', id: '669a8d98d2b388d2974f686c', description: 'Futuristic and edgy' },
     { name: 'Professional Male', id: '6549c5e1b68e59e8f3f5e4d1', description: 'Business professional' },
     { name: 'Professional Female', id: '654a1234b68e59e8f3f5e4d2', description: 'Executive style' },
     { name: 'Casual Creative', id: '654a5678b68e59e8f3f5e4d3', description: 'Relaxed and friendly' },
