@@ -141,7 +141,7 @@ const ChatPanel = ({
             className={cn(
               "flex-1 text-white py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed",
               isListening
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 animate-pulse shadow-xl shadow-blue-500/40"
+                ? "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-xl shadow-blue-500/40"
                 : speechRecognitionAvailable
                 ? "bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-400/30 shadow-lg shadow-cyan-500/20"
                 : "bg-slate-700/30 border border-slate-600/30 cursor-not-allowed"
@@ -149,7 +149,6 @@ const ChatPanel = ({
           >
             {isListening ? (
               <>
-                <div className="w-2 h-2 bg-white rounded-full animate-ping absolute" />
                 <Mic className="w-5 h-5" />
                 <span className="text-sm font-bold">Listening...</span>
               </>
