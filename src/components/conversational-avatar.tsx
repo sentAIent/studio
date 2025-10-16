@@ -13,7 +13,7 @@ import SettingsPanel from "./settings-panel";
 const ConversationalAvatar = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
-    avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
+    avatarUrl: "6699a5e8f3f5e4d1b68e59e8",
     volume: 1.0,
     speechRate: 1.0,
     voiceName: null,
@@ -35,20 +35,15 @@ const ConversationalAvatar = () => {
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setIsMounted(true);
-    setSpeechRecognitionAvailable(
-      typeof window !== "undefined" &&
-        ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
-    );
-  }, []);
-
   const speak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
     
     const synth = window.speechSynthesis;
     synthRef.current = synth;
-    synth.cancel();
+    if (synth.speaking) {
+      synth.cancel();
+    }
+    
     const utterance = new SpeechSynthesisUtterance(text);
     
     if (selectedVoice) {
@@ -84,6 +79,7 @@ const ConversationalAvatar = () => {
 
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
+      setIsListening(false);
     }
   
     setMessage("");
@@ -108,43 +104,45 @@ const ConversationalAvatar = () => {
       speak(errorMessage);
     } finally {
       setIsProcessing(false);
-      // a small delay to allow the speaking state to be set
       setTimeout(() => {
-        if (!isSpeaking) {
+        if (!window.speechSynthesis.speaking) {
            setAvatarMood("neutral");
         }
-      }, 200)
+      }, 200);
     }
-  }, [message, isProcessing, isListening, conversation, speak, isSpeaking]);
-
-
+  }, [message, isProcessing, isListening, conversation, speak]);
+  
   useEffect(() => {
-    if (!isMounted || !speechRecognitionAvailable) return;
+    setIsMounted(true);
+    const recognitionAvailable = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+    setSpeechRecognitionAvailable(recognitionAvailable);
+
+    if (!recognitionAvailable) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
-    const recognition = recognitionRef.current;
-    
+    const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
-    
+    recognitionRef.current = recognition;
+
     recognition.onstart = () => {
+      console.log("Recognition started");
       setIsListening(true);
       setVoiceError('');
     };
 
     recognition.onend = () => {
+      console.log("Recognition ended");
       setIsListening(false);
     };
-
+    
     recognition.onresult = (event) => {
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
+        finalTranscript += event.results[i][0].transcript;
       }
+      console.log("Recognition result:", finalTranscript);
       if (finalTranscript) {
         handleSendMessage(finalTranscript);
       }
@@ -152,6 +150,7 @@ const ConversationalAvatar = () => {
     
     recognition.onerror = (event) => {
       if (event.error === 'aborted') {
+        console.log("Speech recognition aborted.");
         return;
       }
       let errorMsg = `An error occurred with speech recognition: ${event.error}.`;
@@ -170,9 +169,10 @@ const ConversationalAvatar = () => {
     };
     
     return () => {
+      console.log("Cleaning up recognition");
       recognitionRef.current?.abort();
     };
-  }, [isMounted, speechRecognitionAvailable, handleSendMessage]);
+  }, [handleSendMessage]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -209,7 +209,9 @@ const ConversationalAvatar = () => {
     }
     
     return () => {
-      window.speechSynthesis?.cancel();
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, [isMounted, settings.voiceName]);
 
@@ -308,4 +310,3 @@ const ConversationalAvatar = () => {
 };
 
 export default ConversationalAvatar;
-
