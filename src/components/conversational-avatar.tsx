@@ -13,7 +13,7 @@ import SettingsPanel from "./settings-panel";
 const ConversationalAvatar = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
-    avatarUrl: "6699a5e8f3f5e4d1b68e59e8",
+    avatarUrl: "669a8d98d2b388d2974f686c",
     volume: 1.0,
     speechRate: 1.0,
     voiceName: null,
@@ -124,7 +124,7 @@ const ConversationalAvatar = () => {
     const recognition = recognitionRef.current;
     recognition.lang = 'en-US';
     recognition.continuous = true;
-
+    
     recognition.onstart = () => {
       console.log("Recognition started");
       setIsListening(true);
@@ -276,12 +276,14 @@ const ConversationalAvatar = () => {
       <AvatarHeader isSpeaking={isSpeaking} openSettings={() => setShowSettingsPanel(true)} />
       
       <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        <AvatarDisplay 
-          avatarUrl={settings.avatarUrl} 
-          avatarMood={avatarMood}
-          isSpeaking={isSpeaking}
-          onStopSpeaking={stopSpeaking}
-        />
+        {isMounted && (
+            <AvatarDisplay 
+              avatarUrl={settings.avatarUrl} 
+              avatarMood={avatarMood}
+              isSpeaking={isSpeaking}
+              onStopSpeaking={stopSpeaking}
+            />
+        )}
         <ChatPanel 
           conversation={conversation}
           isProcessing={isProcessing}
