@@ -1,14 +1,17 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { AvatarSettings, PresetAvatar } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
-import { UploadCloud, Check } from "lucide-react";
+import { UploadCloud, Check, Play, Loader2 } from "lucide-react";
+import { getTranscription, getSynthesizedSpeech } from "@/app/actions";
+import { useToast } from "@/hooks/use-toast";
 
 type SettingsPanelProps = {
   settings: AvatarSettings;
@@ -37,6 +40,13 @@ const SettingsPanel = ({
 }: SettingsPanelProps) => {
   const [tempSettings, setTempSettings] = useState(settings);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [transcribedText, setTranscribedText] = useState('');
+  const [synthesizedAudioUri, setSynthesizedAudioUri] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const audioPlayerRef = useRef<HTMLAudioElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     setTempSettings(settings);
@@ -50,9 +60,81 @@ const SettingsPanel = ({
       closePanel();
     }, 1500);
   };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Please upload an audio file smaller than 10MB.",
+        });
+        return;
+      }
+      setAudioFile(file);
+      setTranscribedText('');
+      setSynthesizedAudioUri(null);
+    }
+  };
+  
+  const handleProcessAudio = async () => {
+    if (!audioFile) return;
+
+    setIsProcessing(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(audioFile);
+      reader.onloadend = async () => {
+        const base64Audio = reader.result as string;
+        
+        // 1. Transcribe
+        const transcription = await getTranscription(base64Audio);
+        if (transcription) {
+          setTranscribedText(transcription);
+          
+          // 2. Synthesize
+          const audioUri = await getSynthesizedSpeech(transcription, tempSettings.voiceName);
+          if (audioUri) {
+            setSynthesizedAudioUri(audioUri);
+          } else {
+             toast({
+              variant: "destructive",
+              title: "Speech Synthesis Failed",
+              description: "Could not generate audio from the transcribed text.",
+            });
+          }
+        } else {
+           toast({
+              variant: "destructive",
+              title: "Transcription Failed",
+              description: "Could not transcribe the uploaded audio.",
+            });
+        }
+      };
+    } catch (error) {
+      console.error("Error processing audio:", error);
+      toast({
+        variant: "destructive",
+        title: "An Error Occurred",
+        description: "Failed to process the audio file.",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const playSynthesizedAudio = () => {
+    if (synthesizedAudioUri && audioPlayerRef.current) {
+      audioPlayerRef.current.src = synthesizedAudioUri;
+      audioPlayerRef.current.play();
+    }
+  };
+
 
   return (
     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+       <audio ref={audioPlayerRef} className="hidden" />
       <div className="bg-slate-900 border border-cyan-400/40 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl shadow-cyan-500/20">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-white font-bold text-xl">Settings</h2>
@@ -139,13 +221,41 @@ const SettingsPanel = ({
 
             <div className="mb-6">
               <label className="text-cyan-300 text-sm font-medium mb-2 block">
-                Clone a New Voice (Coming Soon)
+                Simulate Voice Cloning
               </label>
               <div className="bg-slate-800/50 border-2 border-dashed border-cyan-400/30 rounded-xl p-6 text-center">
                   <UploadCloud className="mx-auto h-12 w-12 text-cyan-300/50" />
-                  <p className="mt-4 text-sm text-cyan-300/80">Upload a 10-30 second audio file of clear speech to create a custom voice clone.</p>
-                  <Button disabled className="mt-6" variant="outline">Choose File</Button>
+                  <p className="mt-4 text-sm text-cyan-300/80">Upload a 10-30 second audio file. We'll transcribe it and synthesize it with your selected voice.</p>
+                  <Input id="audio-upload" type="file" className="hidden" accept="audio/*" onChange={handleFileChange} />
+                  <Button asChild className="mt-6 cursor-pointer" variant="outline">
+                    <Label htmlFor="audio-upload">{audioFile ? "Change File" : "Choose File"}</Label>
+                  </Button>
+                  {audioFile && <p className="text-xs mt-2 text-cyan-300/60">Selected: {audioFile.name}</p>}
               </div>
+
+               {audioFile && (
+                <div className="mt-4 space-y-4">
+                  <Button onClick={handleProcessAudio} disabled={isProcessing || !audioFile} className="w-full">
+                    {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : "Transcribe & Synthesize"}
+                  </Button>
+
+                  {transcribedText && (
+                    <div className="space-y-2">
+                      <Label htmlFor="transcription" className="text-cyan-300">Transcribed Text</Label>
+                      <Textarea id="transcription" value={transcribedText} readOnly className="bg-slate-800/80 border-cyan-400/30 min-h-[100px]"/>
+                    </div>
+                  )}
+
+                  {synthesizedAudioUri && (
+                     <div className="flex items-center gap-2">
+                        <Button onClick={playSynthesizedAudio} variant="outline" className="flex-1">
+                          <Play className="mr-2 h-4 w-4"/>
+                          Play Synthesized Audio
+                        </Button>
+                      </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mb-6">

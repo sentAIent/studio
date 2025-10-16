@@ -5,6 +5,7 @@ import {
   type GenerateAiResponseInput,
 } from "@/ai/flows/generate-ai-messages";
 import { synthesizeSpeech, type SynthesizeSpeechInput } from "@/ai/flows/synthesize-speech-flow";
+import { transcribeAudio, type TranscribeAudioInput } from "@/ai/flows/transcribe-audio-flow";
 import type { Message } from "@/lib/types";
 
 export async function getAiResponse(
@@ -40,6 +41,19 @@ export async function getSynthesizedSpeech(text: string, voiceName: string | nul
     return result.audioDataUri;
   } catch (error) {
     console.error("Error synthesizing speech:", error);
+    return null;
+  }
+}
+
+export async function getTranscription(audioDataUri: string) {
+  const input: TranscribeAudioInput = {
+    audioDataUri,
+  };
+  try {
+    const result = await transcribeAudio(input);
+    return result.transcription;
+  } catch (error) {
+    console.error("Error transcribing audio:", error);
     return null;
   }
 }
