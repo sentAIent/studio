@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { Message, AvatarMood, AvatarSettings } from "@/lib/types";
 import { getAiResponse, getSynthesizedSpeech } from "@/app/actions";
 import { useUser, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, onSnapshot, addDoc, query, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, onSnapshot, addDoc, query, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { setDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import AvatarHeader from "./avatar-header";
 import AvatarDisplay from "./avatar-display";
@@ -37,6 +37,8 @@ const AvatarCore = () => {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -56,13 +58,6 @@ const AvatarCore = () => {
       if (!conversationColRef) return null;
       return query(conversationColRef, orderBy("timestamp", "desc"), limit(1));
   }, [conversationColRef]);
-
-  const messagesColRef = useMemoFirebase(() => {
-      if (!latestConversationQuery) return null;
-      // This part is tricky as we need to get the latest conversation doc first
-      // We'll handle this inside the effect.
-      return null;
-  }, [latestConversationQuery]);
   
   // Effect for fetching avatar settings
   useEffect(() => {
@@ -72,6 +67,7 @@ const AvatarCore = () => {
         if (docSnap.exists()) {
             setSettings(docSnap.data() as AvatarSettings);
         } else {
+            // If no settings exist, create them with default values
             setDocumentNonBlocking(settingsDocRef, settings, { merge: true });
         }
     }, (error) => {
@@ -91,16 +87,26 @@ const AvatarCore = () => {
     const unsubConversations = onSnapshot(latestConversationQuery, (querySnapshot) => {
         if (!querySnapshot.empty) {
             const conversationDoc = querySnapshot.docs[0];
+            setCurrentConversationId(conversationDoc.id);
             const messagesRef = collection(firestore!, `users/${user!.uid}/conversations/${conversationDoc.id}/messages`);
             const messagesQuery = query(messagesRef, orderBy("timestamp", "asc"));
             
             const unsubMessages = onSnapshot(messagesQuery, (messagesSnapshot) => {
                 const fetchedMessages = messagesSnapshot.docs.map(doc => doc.data() as Message);
                 setConversation(fetchedMessages);
+            }, (error) => {
+                console.error("Error fetching messages:", error);
+                setConversation([]);
             });
             
             return () => unsubMessages();
         } else {
+            // No conversations exist, create one
+            if(conversationColRef) {
+                addDoc(conversationColRef, { timestamp: Timestamp.now() }).then(docRef => {
+                    setCurrentConversationId(docRef.id);
+                });
+            }
             setConversation([]);
         }
     }, (error) => {
@@ -108,7 +114,7 @@ const AvatarCore = () => {
     });
 
     return () => unsubConversations();
-}, [latestConversationQuery, firestore, user]);
+}, [latestConversationQuery, firestore, user, conversationColRef]);
 
 
   const handleUpdateSettings = (newSettings: AvatarSettings) => {
@@ -130,9 +136,6 @@ const AvatarCore = () => {
       if (audioRef.current) {
         audioRef.current.src = audioDataUri;
         audioRef.current.volume = settings.volume;
-        // The playback rate for <audio> elements is not the same as SpeechSynthesis.
-        // It's not directly applied here but could be with audioRef.current.playbackRate.
-        // For simplicity, we'll control rate via the TTS generation if the API supports it.
         audioRef.current.play().catch(e => console.error("Audio playback error:", e));
 
         audioRef.current.onended = () => {
@@ -146,7 +149,6 @@ const AvatarCore = () => {
         }
       }
     } else {
-        // Fallback or error handling
         setIsSpeaking(false);
         setAvatarMood("neutral");
         toast({
@@ -161,54 +163,50 @@ const AvatarCore = () => {
     const textToSend = messageText || message;
     if (!textToSend.trim() || isProcessing) return;
 
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
-    }
-  
     setMessage("");
     setIsProcessing(true);
     setAvatarMood("thinking");
   
     const userMessage: Message = { role: "user", content: textToSend };
-    const newConversation = [...conversation, userMessage];
-    setConversation(newConversation);
+    // Optimistically update UI
+    setConversation(prev => [...prev, userMessage]);
   
     try {
-      const aiResponse = await getAiResponse(newConversation, textToSend);
-      const assistantMessage: Message = { role: "assistant", content: aiResponse };
-
-      // Save messages to Firestore
-      if(conversationColRef) {
-          const conversationDoc = (await onSnapshot(query(conversationColRef, orderBy("timestamp", "desc"), limit(1)), (snapshot) => snapshot).get()).docs[0];
-          let conversationId = conversationDoc?.id;
-          if(!conversationId) {
-             const newConvDoc = await addDoc(conversationColRef, { timestamp: new Date() });
-             conversationId = newConvDoc.id;
-          }
-          const messagesRef = collection(firestore!, conversationColRef.path, conversationId, 'messages');
-          await addDocumentNonBlocking(messagesRef, {...userMessage, timestamp: new Date() });
-          await addDocumentNonBlocking(messagesRef, {...assistantMessage, timestamp: new Date() });
-      }
-
-      speak(aiResponse);
+        const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
+        const assistantMessage: Message = { role: "assistant", content: aiResponse };
+        setConversation(prev => [...prev, assistantMessage]);
+        
+        // Save messages to Firestore
+        if (conversationColRef && currentConversationId) {
+            const messagesRef = collection(firestore!, conversationColRef.path, currentConversationId, 'messages');
+            await addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
+            await addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
+        }
+        
+        speak(aiResponse);
 
     } catch(e) {
       console.error(e);
-      const errorMessage = "Sorry, I had trouble generating a response.";
-      speak(errorMessage);
+      const errorMessage = { role: "assistant", content: "Sorry, I had trouble generating a response." } as Message;
+      setConversation(prev => [...prev, errorMessage]);
+      speak(errorMessage.content);
     } finally {
       setIsProcessing(false);
-      setTimeout(() => {
-        if (!isSpeaking) {
-           setAvatarMood("neutral");
-        }
-      }, 200);
+      // Let speak() control the mood, so we don't prematurely set it to neutral
     }
-  }, [message, isProcessing, isListening, conversation, speak, conversationColRef, firestore, isSpeaking]);
+  }, [message, isProcessing, conversation, speak, conversationColRef, firestore, currentConversationId]);
+
+  const handleTranscript = useCallback((transcript: string) => {
+      if (transcript) {
+        handleSendMessage(transcript);
+      }
+      setIsListening(false);
+  }, [handleSendMessage]);
   
   useEffect(() => {
     const recognitionAvailable = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
     setSpeechRecognitionAvailable(recognitionAvailable);
+    setIsClient(true);
 
     if (!recognitionAvailable) {
         console.log("Speech recognition not available.");
@@ -220,36 +218,36 @@ const AvatarCore = () => {
     const recognition = recognitionRef.current;
     
     recognition.lang = 'en-US';
-    recognition.continuous = true;
+    recognition.continuous = false; // Process after a single utterance
+    recognition.interimResults = false;
     
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
+    recognition.onstart = () => {
+        setIsListening(true);
+    };
+    recognition.onend = () => {
+        setIsListening(false);
+    };
     
     recognition.onresult = (event) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
-      }
-      if (finalTranscript) {
-        handleSendMessage(finalTranscript);
-      }
+        const finalTranscript = event.results[0][0].transcript;
+        handleTranscript(finalTranscript);
     };
     
     recognition.onerror = (event) => {
-      // Error handling logic remains the same
-      if (event.error === 'aborted') return;
+      if (event.error === 'aborted') {
+          console.log('Speech recognition aborted.');
+          return;
+      };
       let errorMsg = `An error occurred: ${event.error}.`;
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        errorMsg = "Microphone access denied. Please allow microphone permissions.";
+        errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings.";
       }
       setVoiceError(errorMsg);
       setIsListening(false);
     };
     
     return () => recognitionRef.current?.abort();
-  }, [handleSendMessage]);
+  }, [handleTranscript]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -257,13 +255,8 @@ const AvatarCore = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [conversation, isProcessing]);
+  }, [conversation]);
   
-  // This useEffect is no longer needed as we're not using browser voices
-  // but we keep it for client-side check.
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const toggleListening = () => {
     if (isProcessing || !recognitionRef.current) return;
@@ -274,7 +267,8 @@ const AvatarCore = () => {
         setVoiceError('');
         recognitionRef.current.start();
       } catch (error) {
-        setVoiceError("Could not start voice recognition. Please ensure permissions are enabled.");
+        console.error("Could not start voice recognition:", error);
+        setVoiceError("Could not start voice recognition. Please ensure permissions are enabled and try again.");
         setIsListening(false);
       }
     }
@@ -290,16 +284,12 @@ const AvatarCore = () => {
   };
 
   const clearConversation = async () => {
-      setConversation([]);
       stopSpeaking();
+      setConversation([]);
       if(conversationColRef) {
-          const snapshot = await onSnapshot(query(conversationColRef, orderBy("timestamp", "desc"), limit(1)), (snapshot) => snapshot).get();
-          if(!snapshot.empty){
-              const docId = snapshot.docs[0].id;
-              // Ideally, you would delete subcollections with a cloud function.
-              // For the client, we'll just start a new conversation document.
-              await addDoc(conversationColRef, { timestamp: new Date() });
-          }
+        // Start a new conversation document
+        const newConvDoc = await addDoc(conversationColRef, { timestamp: Timestamp.now() });
+        setCurrentConversationId(newConvDoc.id);
       }
   };
 
@@ -347,3 +337,5 @@ const AvatarCore = () => {
 };
 
 export default AvatarCore;
+
+    
