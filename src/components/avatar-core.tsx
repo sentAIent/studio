@@ -175,8 +175,9 @@ const AvatarCore = () => {
         // Save messages to Firestore
         if (firestore && conversationColRef && currentConversationId) {
             const messagesRef = collection(firestore, conversationColRef.path, currentConversationId, 'messages');
-            await addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
-            await addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
+            // USE NON-BLOCKING
+            addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
+            addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
         }
         
         // The snapshot listener will update the conversation state.
@@ -341,3 +342,5 @@ const AvatarCore = () => {
 };
 
 export default AvatarCore;
+
+    
