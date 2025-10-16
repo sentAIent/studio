@@ -1,93 +1,84 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for the AvatarSpeak application.
+ * @fileoverview Firestore Security Rules for AvatarSpeak.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model. Users can only
+ * access their own data, based on their authenticated `uid`.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data.  Only the authenticated user can read/write their own profile.
- * - /users/{userId}/avatarSettings/{avatarSettingId}: Stores avatar settings. Only the owning user can access these settings.
- * - /users/{userId}/conversations/{conversationId}: Stores conversation history. Only the owning user can access these conversations.
+ * All data is nested under /users/{userId}, ensuring clear ownership.
+ * Subcollections include avatarSettings and conversations.
  *
  * Key Security Decisions:
- * - User data is private and only accessible to the owning user.
- * - All data is nested under the /users/{userId} collection, simplifying authorization checks.
- * - No user listing is allowed.
+ * - Users can only read and write their own user document.
+ * - Subcollections inherit ownership from the parent user document.
+ * - Data validation is relaxed to allow prototyping, focusing on
+ *   authorization and relationship integrity (userId).
+ * - No listing of all users is allowed.
  *
- * Authorization is based on `request.auth.uid` and path-based ownership, and all writes are validated against this ownership.
+ * Denormalization for Authorization:
+ *  - The `userId` is present within the `avatarSettings` and `conversations` documents,
+ *    and this field is validated against the path to prevent unauthorized access
+ *    or manipulation of other users' data.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Protects the /users/{userId} collection, ensuring users can only manage their own profiles.
      * @path /users/{userId}
-     * @allow (create) - Authenticated user creates their own profile.
-     * @allow (get, update, delete) - Authenticated user reads/modifies their own profile.
-     * @deny (create, get, update, delete) - Any operation by a non-authenticated user or another user.
+     * @allow (create) - User with UID 'user123' can create their profile if userId == 'user123'.
+     * @allow (get, update, delete) - User with UID 'user123' can access their profile with userId == 'user123'.
+     * @deny (create) - User with UID 'user456' cannot create a profile under /users/user123.
+     * @deny (get, update, delete) - User with UID 'user456' cannot access the profile at /users/user123.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource != null && resource.data.id == userId;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to avatar settings for a user.
+     * @description Protects the /users/{userId}/avatarSettings/{avatarSettingId} collection, allowing only the owning user access.
      * @path /users/{userId}/avatarSettings/{avatarSettingId}
-     * @allow (create) - Authenticated user creates avatar settings for themselves.
-     * @allow (get, update, delete) - Authenticated user reads/modifies their own avatar settings.
-     * @deny (create, get, update, delete) - Any operation by a non-authenticated user or another user.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, get, update, delete) - User with UID 'user123' can manage their avatar settings under /users/user123/.
+     * @deny (create, get, update, delete) - User with UID 'user456' cannot access avatar settings under /users/user123/.
+     * @principle Restricts access to a user's own avatar settings.
      */
     match /users/{userId}/avatarSettings/{avatarSettingId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource != null && resource.data.userId == userId;
+      allow delete: if isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Controls access to conversations for a user.
+     * @description Protects the /users/{userId}/conversations/{conversationId} collection, allowing only the owning user access.
      * @path /users/{userId}/conversations/{conversationId}
-     * @allow (create) - Authenticated user creates conversations for themselves.
-     * @allow (get, update, delete) - Authenticated user reads/modifies their own conversations.
-     * @deny (create, get, update, delete) - Any operation by a non-authenticated user or another user.
-     * @principle Enforces document ownership for all operations.
+     * @allow (create, get, update, delete) - User with UID 'user123' can manage their conversations under /users/user123/.
+     * @deny (create, get, update, delete) - User with UID 'user456' cannot access conversations under /users/user123/.
+     * @principle Restricts access to a user's own conversations.
      */
     match /users/{userId}/conversations/{conversationId} {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource != null && resource.data.userId == userId;
+      allow delete: if isOwner(userId) && resource != null;
     }
   }
 }
