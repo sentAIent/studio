@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -11,7 +12,7 @@ import SettingsPanel from "./settings-panel";
 
 const AvatarCore = () => {
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
-    avatarUrl: "667a7d571b96054a112044b7",
+    avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
     volume: 1.0,
     speechRate: 1.0,
     voiceName: null,
@@ -295,3 +296,5 @@ const AvatarCore = () => {
 };
 
 export default AvatarCore;
+
+    

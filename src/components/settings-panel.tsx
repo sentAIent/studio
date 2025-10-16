@@ -15,10 +15,10 @@ type SettingsPanelProps = {
 };
 
 const presetAvatars: PresetAvatar[] = [
-    { name: 'Casual Female', id: '667a7d571b96054a112044b7', description: 'A friendly and casual look' },
     { name: 'Professional Male', id: '6549c5e1b68e59e8f3f5e4d1', description: 'Business professional' },
-    { name: 'Stylized Male', id: '667a7d9d1b96054a112044ba', description: 'A stylized character' },
-    { name: 'Tech Innovator', id: '654b9012b68e59e8f3f5e4d4', description: 'Modern tech look' }
+    { name: 'Casual Female', id: '654b9012b68e59e8f3f5e4d4', description: 'A friendly and casual look' },
+    { name: 'Stylized Male', id: '6460d39327d6f560e28bc026', description: 'A stylized character' },
+    { name: 'Sci-fi Female', id: '6460d26727d6f560e28bc01d', description: 'A futuristic look' }
 ];
 
 const SettingsPanel = ({
@@ -178,3 +178,5 @@ const SettingsPanel = ({
 };
 
 export default SettingsPanel;
+
+    
