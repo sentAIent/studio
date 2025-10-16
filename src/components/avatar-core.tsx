@@ -34,8 +34,6 @@ const AvatarCore = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [speechRecognitionAvailable, setSpeechRecognitionAvailable] = useState(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
@@ -72,11 +70,6 @@ const AvatarCore = () => {
         }
     }, (error) => {
         console.error("Error fetching settings:", error);
-        toast({
-            variant: "destructive",
-            title: "Error loading settings",
-            description: "Could not load your saved settings."
-        });
     });
     return () => unsubscribe();
   }, [settingsDocRef]);
@@ -103,8 +96,10 @@ const AvatarCore = () => {
         } else {
             // No conversations exist, create one
             if(conversationColRef) {
-                addDoc(conversationColRef, { timestamp: Timestamp.now() }).then(docRef => {
-                    setCurrentConversationId(docRef.id);
+                addDocumentNonBlocking(conversationColRef, { timestamp: Timestamp.now() }).then(docRef => {
+                    if (docRef) {
+                      setCurrentConversationId(docRef.id);
+                    }
                 });
             }
             setConversation([]);
@@ -174,13 +169,17 @@ const AvatarCore = () => {
     try {
         const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
         const assistantMessage: Message = { role: "assistant", content: aiResponse };
-        setConversation(prev => [...prev, assistantMessage]);
         
-        // Save messages to Firestore
-        if (conversationColRef && currentConversationId) {
-            const messagesRef = collection(firestore!, conversationColRef.path, currentConversationId, 'messages');
-            await addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
-            await addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
+        // Save messages to Firestore (optimistic UI update already done)
+        if (firestore && conversationColRef && currentConversationId) {
+            const messagesRef = collection(firestore, conversationColRef.path, currentConversationId, 'messages');
+            addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
+            addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
+
+            // We only update the conversation state after the AI response is back
+            // to avoid showing a message that hasn't been persisted yet.
+            // The onSnapshot listener will eventually pick up the change, but this is faster.
+            setConversation(prev => [...prev, assistantMessage]);
         }
         
         speak(aiResponse);
@@ -194,7 +193,7 @@ const AvatarCore = () => {
       setIsProcessing(false);
       // Let speak() control the mood, so we don't prematurely set it to neutral
     }
-  }, [message, isProcessing, conversation, speak, conversationColRef, firestore, currentConversationId]);
+  }, [message, isProcessing, conversation, speak, firestore, conversationColRef, currentConversationId]);
 
   const handleTranscript = useCallback((transcript: string) => {
       if (transcript) {
