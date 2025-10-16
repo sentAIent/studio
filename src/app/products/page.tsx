@@ -41,7 +41,8 @@ const products = [
     status: 'Active',
     price: '$49.99',
     stock: 25,
-    image: 'https://picsum.photos/seed/p1/400/300',
+    image: 'https://picsum.photos/seed/p1/64/64',
+    createdAt: "2023-07-12 10:42 AM",
     imageHint: 'modern chair',
   },
   {
@@ -49,7 +50,8 @@ const products = [
     status: 'Active',
     price: '$29.99',
     stock: 120,
-    image: 'https://picsum.photos/seed/p2/400/300',
+    image: 'https://picsum.photos/seed/p2/64/64',
+    createdAt: "2023-10-18 02:14 PM",
     imageHint: 'geometric vase',
   },
   {
@@ -57,7 +59,8 @@ const products = [
     status: 'Archived',
     price: '$79.99',
     stock: 0,
-    image: 'https://picsum.photos/seed/p3/400/300',
+    image: 'https://picsum.photos/seed/p3/64/64',
+     createdAt: "2023-09-21 11:30 AM",
     imageHint: 'wood organizer',
   },
   {
@@ -65,7 +68,8 @@ const products = [
     status: 'Active',
     price: '$19.99',
     stock: 200,
-    image: 'https://picsum.photos/seed/p4/400/300',
+    image: 'https://picsum.photos/seed/p4/64/64',
+    createdAt: "2024-01-05 08:00 AM",
     imageHint: 'slate coasters',
   },
   {
@@ -73,7 +77,8 @@ const products = [
     status: 'Draft',
     price: '$9.99',
     stock: 500,
-    image: 'https://picsum.photos/seed/p5/400/300',
+    image: 'https://picsum.photos/seed/p5/64/64',
+    createdAt: "2024-02-28 04:55 PM",
     imageHint: 'laptop decal',
   },
 ];
@@ -101,31 +106,91 @@ export default function ProductsPage() {
           </div>
         </div>
         <TabsContent value="all">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map((product) => (
-              <Card key={product.name}>
-                <CardHeader>
-                  <CardTitle>{product.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Image
-                    alt={product.name}
-                    className="aspect-square w-full rounded-md object-cover"
-                    height="200"
-                    src={product.image}
-                    width="200"
-                    data-ai-hint={product.imageHint}
-                  />
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    {product.price}
-                  </div>
-                   <Badge variant={product.status === "Active" ? "default" : "secondary"}>{product.status}</Badge>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Products</CardTitle>
+              <CardDescription>
+                Manage your products and view their sales performance.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="hidden w-[100px] sm:table-cell">
+                      <span className="sr-only">Image</span>
+                    </TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Total Sales
+                    </TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Created at
+                    </TableHead>
+                    <TableHead>
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map((product) => (
+                  <TableRow key={product.name}>
+                    <TableCell className="hidden sm:table-cell">
+                      <Image
+                        alt={product.name}
+                        className="aspect-square rounded-md object-cover"
+                        height="64"
+                        src={product.image}
+                        width="64"
+                        data-ai-hint={product.imageHint}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {product.name}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={product.status === "Active" ? "default" : (product.status === "Draft" ? "secondary" : "outline")}>{product.status}</Badge>
+                    </TableCell>
+                    <TableCell>{product.price}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {product.stock}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {product.createdAt}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            aria-haspopup="true"
+                            size="icon"
+                            variant="ghost"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem>Edit</DropdownMenuItem>
+                          <DropdownMenuItem>Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+            <CardFooter>
+              <div className="text-xs text-muted-foreground">
+                Showing <strong>1-5</strong> of <strong>32</strong>{" "}
+                products
+              </div>
+            </CardFooter>
+          </Card>
         </TabsContent>
       </Tabs>
     </DashboardLayout>

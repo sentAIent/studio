@@ -54,7 +54,7 @@ const chartData = [
 const chartConfig = {
   users: {
     label: 'Users',
-    color: 'hsl(var(--primary))',
+    color: 'hsl(var(--chart-1))',
   },
 };
 

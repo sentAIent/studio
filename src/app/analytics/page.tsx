@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, ArrowUpRight, DollarSign, Users } from 'lucide-react';
+import { Activity, ArrowUpRight, CreditCard, DollarSign, Users } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
@@ -59,19 +59,19 @@ const areaChartData = [
 const chartConfig = {
   running: {
     label: 'Running',
-    color: 'hsl(var(--primary))',
+    color: 'hsl(var(--chart-1))',
   },
   cycling: {
     label: 'Cycling',
-    color: 'hsl(var(--secondary))',
+    color: 'hsl(var(--chart-2))',
   },
   desktop: {
     label: 'Desktop',
-    color: 'hsl(var(--primary))',
+    color: 'hsl(var(--chart-1))',
   },
   mobile: {
     label: 'Mobile',
-    color: 'hsl(var(--secondary))',
+    color: 'hsl(var(--chart-2))',
   },
 };
 
