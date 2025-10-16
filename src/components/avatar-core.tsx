@@ -36,9 +36,11 @@ const AvatarCore = () => {
   const [speechRecognitionAvailable, setSpeechRecognitionAvailable] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [finalTranscript, setFinalTranscript] = useState<string>('');
 
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const transcriptRef = useRef<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
@@ -177,8 +179,7 @@ const AvatarCore = () => {
             await addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
         }
         
-        // Update local state after successful save, snapshot listener will catch up but this is faster
-        setConversation(prev => [...prev.slice(0, -1), userMessage, assistantMessage]);
+        // The snapshot listener will update the conversation state.
         
         speak(aiResponse);
 
@@ -194,12 +195,13 @@ const AvatarCore = () => {
   }, [message, isProcessing, conversation, speak, firestore, conversationColRef, currentConversationId]);
 
 
-  const handleTranscript = useCallback((transcript: string) => {
-    if (transcript) {
-      handleSendMessage(transcript);
+  useEffect(() => {
+    if (finalTranscript) {
+      handleSendMessage(finalTranscript);
+      setFinalTranscript(''); // Reset after sending
     }
-    setIsListening(false);
-  }, [handleSendMessage]);
+  }, [finalTranscript, handleSendMessage]);
+
 
   useEffect(() => {
     const recognitionAvailable = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
@@ -220,20 +222,24 @@ const AvatarCore = () => {
     recognition.interimResults = false;
     
     recognition.onstart = () => {
+        transcriptRef.current = '';
         setIsListening(true);
     };
     recognition.onend = () => {
         setIsListening(false);
+        if (transcriptRef.current) {
+            setFinalTranscript(transcriptRef.current);
+        }
     };
     
     recognition.onresult = (event) => {
-        const finalTranscript = event.results[0][0].transcript;
-        handleTranscript(finalTranscript);
+        transcriptRef.current = event.results[0][0].transcript;
     };
     
     recognition.onerror = (event) => {
       if (event.error === 'aborted') {
           console.log('Speech recognition aborted.');
+          setIsListening(false);
           return;
       };
       let errorMsg = `An error occurred: ${event.error}.`;
@@ -245,7 +251,7 @@ const AvatarCore = () => {
     };
     
     return () => recognitionRef.current?.abort();
-  }, [handleTranscript]);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
