@@ -15,12 +15,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { signup, loading, error } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -67,15 +68,25 @@ export default function SignupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-slate-800/80 border-cyan-400/30"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-slate-800/80 border-cyan-400/30 pr-10"
+                />
+                 <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-cyan-300/80 hover:text-cyan-200"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
               <p className="text-xs text-cyan-300/60">Password must be at least 6 characters.</p>
             </div>
           </CardContent>
