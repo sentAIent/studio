@@ -80,7 +80,7 @@ export default function DashboardLayout({
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                  <Link href={item.href} legacyBehavior passHref>
+                  <Link href={item.href}>
                     <SidebarMenuButton
                       isActive={pathname === item.href}
                       tooltip={item.label}
@@ -96,7 +96,7 @@ export default function DashboardLayout({
           <SidebarFooter>
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <Link href="/" legacyBehavior passHref>
+                    <Link href="/">
                         <SidebarMenuButton tooltip="Back to Avatar">
                             <Bot />
                             <span>Back to Avatar</span>
@@ -105,7 +105,7 @@ export default function DashboardLayout({
                 </SidebarMenuItem>
                 {secondaryMenuItems.map((item) => (
                     <SidebarMenuItem key={item.label}>
-                    <Link href={item.href} legacyBehavior passHref>
+                    <Link href={item.href}>
                         <SidebarMenuButton
                         isActive={pathname === item.href}
                         tooltip={item.label}
