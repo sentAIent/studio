@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -123,8 +124,8 @@ export default function ItineraryPage() {
                 <Image
                     src="https://picsum.photos/seed/rome/1200/400"
                     alt="Image of Rome"
-                    layout="fill"
-                    objectFit="cover"
+                    fill={true}
+                    className="object-cover"
                     data-ai-hint="historic rome"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
