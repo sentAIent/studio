@@ -11,7 +11,7 @@ import SettingsPanel from "./settings-panel";
 
 const AvatarCore = () => {
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
-    avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
+    avatarUrl: "667a7d571b96054a112044b7",
     volume: 1.0,
     speechRate: 1.0,
     voiceName: null,
@@ -122,7 +122,6 @@ const AvatarCore = () => {
     
     recognition.lang = 'en-US';
     recognition.continuous = true;
-    recognition.interimResults = true;
     
     recognition.onstart = () => {
       console.log("Recognition started");

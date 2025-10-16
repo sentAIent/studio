@@ -15,9 +15,9 @@ type SettingsPanelProps = {
 };
 
 const presetAvatars: PresetAvatar[] = [
+    { name: 'Casual Female', id: '667a7d571b96054a112044b7', description: 'A friendly and casual look' },
     { name: 'Professional Male', id: '6549c5e1b68e59e8f3f5e4d1', description: 'Business professional' },
-    { name: 'Professional Female', id: '654a1234b68e59e8f3f5e4d2', description: 'Executive style' },
-    { name: 'Casual Creative', id: '654a5678b68e59e8f3f5e4d3', description: 'Relaxed and friendly' },
+    { name: 'Stylized Male', id: '667a7d9d1b96054a112044ba', description: 'A stylized character' },
     { name: 'Tech Innovator', id: '654b9012b68e59e8f3f5e4d4', description: 'Modern tech look' }
 ];
 
