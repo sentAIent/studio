@@ -24,6 +24,13 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 180 100% 50%;
     --radius: 0.5rem;
+
+    --sidebar-background: 222.2 47.4% 9.2%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 180 50% 20%;
+    --sidebar-accent: 180 100% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-ring: 180 100% 50%;
   }
   .dark {
     --background: 222.2 47.4% 11.2%;
@@ -45,6 +52,13 @@
     --border: 180 50% 30%;
     --input: 217.2 32.6% 17.5%;
     --ring: 180 100% 50%;
+
+    --sidebar-background: 222.2 47.4% 9.2%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 180 50% 20%;
+    --sidebar-accent: 180 100% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-ring: 180 100% 50%;
   }
 }
 

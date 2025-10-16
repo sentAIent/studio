@@ -6,9 +6,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Button } from '@/components/ui/button';
+import DashboardLayout from '@/components/dashboard-layout';
 import { Plane } from 'lucide-react';
-import Link from 'next/link';
 
 const itineraryData = [
   {
@@ -33,45 +32,35 @@ const itineraryData = [
 
 export default function ItineraryPage() {
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-950 via-cyan-950 to-teal-950 text-white">
-      <header className="bg-black/40 backdrop-blur-md border-b border-cyan-400/30 p-4 flex items-center justify-between shadow-lg shadow-cyan-500/10">
-        <h1 className="text-white font-bold text-xl md:text-2xl">
-          Your Roman Holiday
-        </h1>
-        <Button asChild variant="outline">
-          <Link href="/">Back to Avatar</Link>
-        </Button>
-      </header>
-      <main className="container mx-auto py-12 px-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
-            <Plane className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
-            <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              Trip to Rome
-            </h2>
-            <p className="mt-4 text-lg text-cyan-200/80">
-              3 Days of History, Art, and "La Dolce Vita"
-            </p>
-          </div>
-
-          <Accordion type="single" collapsible defaultValue="item-0" className="w-full">
-            {itineraryData.map((item, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="bg-slate-900/50 backdrop-blur-sm border-cyan-400/20 border rounded-lg mb-4"
-              >
-                <AccordionTrigger className="px-6 py-4 text-lg font-semibold text-cyan-300 hover:text-cyan-200">
-                  Day {item.day}: {item.title}
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6 text-cyan-100/90">
-                  {item.details}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+    <DashboardLayout>
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-12">
+          <Plane className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
+          <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+            Trip to Rome
+          </h2>
+          <p className="mt-4 text-lg text-cyan-200/80">
+            3 Days of History, Art, and "La Dolce Vita"
+          </p>
         </div>
-      </main>
-    </div>
+
+        <Accordion type="single" collapsible defaultValue="item-0" className="w-full">
+          {itineraryData.map((item, index) => (
+            <AccordionItem
+              key={index}
+              value={`item-${index}`}
+              className="bg-slate-900/50 backdrop-blur-sm border-cyan-400/20 border rounded-lg mb-4"
+            >
+              <AccordionTrigger className="px-6 py-4 text-lg font-semibold text-cyan-300 hover:text-cyan-200">
+                Day {item.day}: {item.title}
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6 text-cyan-100/90">
+                {item.details}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </DashboardLayout>
   );
 }
