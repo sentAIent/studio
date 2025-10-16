@@ -304,7 +304,9 @@ const AvatarCore = () => {
         // Start a new conversation document, non-blocking
         addDocumentBlocking(conversationColRef, { timestamp: Timestamp.now() })
             .then(newConvDoc => {
-                setCurrentConversationId(newConvDoc.id);
+                if (newConvDoc) {
+                    setCurrentConversationId(newConvDoc.id);
+                }
             })
             .catch(err => console.error("Failed to create new conversation:", err));
       }
