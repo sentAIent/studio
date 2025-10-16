@@ -28,8 +28,8 @@ import {
   Sparkles,
   LogOut,
 } from 'lucide-react';
-import { usePathname } from '@/hooks/use-pathname';
-import { useAuth } from '@/hooks/use-auth';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 const menuItems = [
@@ -43,7 +43,7 @@ const menuItems = [
 
 const secondaryMenuItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
-  { href: '/help', label: 'Help & Support', icon: LifeBuoy },
+  { href: '/help', label: 'Help', icon: LifeBuoy },
 ];
 
 export default function DashboardLayout({
@@ -52,13 +52,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { signOut } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
-    await logout();
+    await signOut();
     router.push('/login');
   };
+
+  const currentPage = [...menuItems, ...secondaryMenuItems].find(item => item.href === pathname);
 
   return (
     <SidebarProvider>
@@ -131,7 +133,7 @@ export default function DashboardLayout({
               <SidebarTrigger />
             </div>
              <h1 className="text-white font-bold text-xl md:text-2xl">
-                {menuItems.find(item => item.href === pathname)?.label || secondaryMenuItems.find(item => item.href === pathname)?.label || 'Dashboard'}
+                { currentPage?.label || 'Dashboard' }
             </h1>
             <div></div>
           </header>

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signOut } from 'firebase/auth';
+import { signOut as firebaseSignOut } from 'firebase/auth';
 import { useFirebase, initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
 
 export function useAuth() {
@@ -46,11 +46,11 @@ export function useAuth() {
     }
   };
 
-  const logout = async () => {
+  const signOut = async () => {
     setLoading(true);
     setError(null);
     try {
-      await signOut(auth);
+      await firebaseSignOut(auth);
       setLoading(false);
     } catch (e: any)      {
       console.error("Logout error:", e);
@@ -59,7 +59,5 @@ export function useAuth() {
     }
   };
 
-  return { signup, login, logout, loading, error };
+  return { signup, login, signOut, loading, error };
 }
-
-    

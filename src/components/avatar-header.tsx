@@ -1,18 +1,10 @@
 
 "use client";
 
-import { Settings, Sparkles, LogOut, Plane, ChevronDown, Home, ShoppingCart, Users, Package, BarChart, LifeBuoy } from "lucide-react";
-import { useAuth as useFirebaseAuth } from "@/firebase";
+import { Settings, Sparkles, LogOut, Bot } from "lucide-react";
+import { useAuth } from "@/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "./ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 
 type AvatarHeaderProps = {
   isSpeaking: boolean;
@@ -20,7 +12,7 @@ type AvatarHeaderProps = {
 };
 
 const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
-  const auth = useFirebaseAuth();
+  const auth = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -52,66 +44,9 @@ const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
             </span>
           </div>
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="bg-transparent text-cyan-300 border-cyan-400/30 hover:bg-cyan-500/20 hover:text-cyan-200">
-              Pages
-              <ChevronDown className="w-4 h-4 ml-2" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-slate-900 border-cyan-400/30 text-white">
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard" className="flex items-center gap-2 cursor-pointer">
-                <Home className="w-4 h-4" />
-                Dashboard
-              </Link>
-            </DropdownMenuItem>
-             <DropdownMenuItem asChild>
-              <Link href="/itinerary" className="flex items-center gap-2 cursor-pointer">
-                <Plane className="w-4 h-4" />
-                Itinerary
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/orders" className="flex items-center gap-2 cursor-pointer">
-                <ShoppingCart className="w-4 h-4" />
-                Orders
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/customers" className="flex items-center gap-2 cursor-pointer">
-                <Users className="w-4 h-4" />
-                Customers
-              </Link>
-            </DropdownMenuItem>
-             <DropdownMenuItem asChild>
-              <Link href="/products" className="flex items-center gap-2 cursor-pointer">
-                <Package className="w-4 h-4" />
-                Products
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/analytics" className="flex items-center gap-2 cursor-pointer">
-                <BarChart className="w-4 h-4" />
-                Analytics
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-             <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
-                <Settings className="w-4 h-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
-             <DropdownMenuItem asChild>
-              <Link href="/help" className="flex items-center gap-2 cursor-pointer">
-                <LifeBuoy className="w-4 h-4" />
-                Help & Support
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Link href="/dashboard" className="p-2 bg-cyan-500/20 hover:bg-cyan-500/40 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/20" aria-label="Go to Dashboard">
+          <Bot className="w-5 h-5 md:w-6 md:h-6 text-cyan-300" />
+        </Link>
         <button
           onClick={openSettings}
           className="p-2 bg-cyan-500/20 hover:bg-cyan-500/40 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/20"
