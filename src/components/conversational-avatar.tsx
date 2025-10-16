@@ -122,13 +122,13 @@ const ConversationalAvatar = () => {
     if (!isMounted || !speechRecognitionAvailable) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    recognitionRef.current = new SpeechRecognition();
+    const recognition = recognitionRef.current;
+    
     recognition.lang = 'en-US';
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = false;
     
-    recognitionRef.current = recognition;
-
     recognition.onstart = () => {
       setIsListening(true);
       setVoiceError('');
@@ -185,10 +185,9 @@ const ConversationalAvatar = () => {
   useEffect(() => {
     if(!isMounted) return;
 
-    synthRef.current = window.speechSynthesis;
     const loadVoices = () => {
-      if(!synthRef.current) return;
-      const availableVoices = synthRef.current.getVoices();
+      if(!window.speechSynthesis) return;
+      const availableVoices = window.speechSynthesis.getVoices();
       if (availableVoices.length === 0) return;
       setVoices(availableVoices);
       
@@ -205,12 +204,12 @@ const ConversationalAvatar = () => {
     };
 
     loadVoices();
-    if (synthRef.current.onvoiceschanged !== undefined) {
-      synthRef.current.onvoiceschanged = loadVoices;
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
     }
     
     return () => {
-      synthRef.current?.cancel();
+      window.speechSynthesis?.cancel();
     };
   }, [isMounted, settings.voiceName]);
 
@@ -222,13 +221,19 @@ const ConversationalAvatar = () => {
   }, [settings.voiceName, voices]);
 
   const toggleListening = () => {
-    if (isProcessing || !recognitionRef.current) return;
+    console.log("toggleListening called. isListening:", isListening, "recognitionRef.current:", recognitionRef.current);
+    if (isProcessing || !recognitionRef.current) {
+        console.log("Cannot toggle listening. isProcessing:", isProcessing, "recognitionRef:", !recognitionRef.current);
+        return;
+    };
 
     if (isListening) {
+      console.log("Stopping recognition");
       recognitionRef.current.stop();
     } else {
       try {
         setVoiceError('');
+        console.log("Starting recognition");
         recognitionRef.current.start();
       } catch (error: any) {
         console.error("Could not start recognition:", error);
@@ -239,8 +244,8 @@ const ConversationalAvatar = () => {
   };
   
   const stopSpeaking = () => {
-    if (!synthRef.current) return;
-    synthRef.current.cancel();
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
     setIsSpeaking(false);
     setAvatarMood("neutral");
   };
@@ -304,4 +309,3 @@ const ConversationalAvatar = () => {
 
 export default ConversationalAvatar;
 
-    
