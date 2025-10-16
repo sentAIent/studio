@@ -34,7 +34,7 @@ const ConversationalAvatar = () => {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -48,8 +48,10 @@ const ConversationalAvatar = () => {
   }, [conversation, isProcessing]);
   
   const speak = useCallback((text: string) => {
-    if (!synthRef.current) return;
-    synthRef.current.cancel();
+    if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
+    
+    const synth = window.speechSynthesis;
+    synth.cancel(); // Stop any previous speech
     const utterance = new SpeechSynthesisUtterance(text);
     
     if (selectedVoice) {
@@ -76,133 +78,25 @@ const ConversationalAvatar = () => {
       setAvatarMood("neutral");
     };
 
-    synthRef.current.speak(utterance);
+    synth.speak(utterance);
   }, [selectedVoice, settings.speechRate, settings.volume]);
 
-  useEffect(() => {
-    synthRef.current = window.speechSynthesis;
-
-    const loadVoices = () => {
-      if(!synthRef.current) return;
-      const availableVoices = synthRef.current.getVoices();
-      setVoices(availableVoices);
-      
-      if (availableVoices.length > 0) {
-        let voiceToSelect: SpeechSynthesisVoice | undefined;
-        if (settings.voiceName) {
-          voiceToSelect = availableVoices.find(v => v.name === settings.voiceName);
-        }
-        if (!voiceToSelect) {
-          voiceToSelect = availableVoices.find(v => v.lang.startsWith('en-US')) || 
-                          availableVoices.find(v => v.lang.startsWith('en')) || 
-                          availableVoices[0];
-        }
-        setSelectedVoice(voiceToSelect || null);
-      }
-    };
-
-    loadVoices();
-    if (synthRef.current.onvoiceschanged !== undefined) {
-      synthRef.current.onvoiceschanged = loadVoices;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const hasSpeechRecognition = !!SpeechRecognition;
-    setSpeechRecognitionAvailable(hasSpeechRecognition);
-
-    if (hasSpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onstart = () => {
-        setIsListening(true);
-        setVoiceError('');
-      };
-      
-      recognitionRef.current.onend = () => {
-        if (isListening) {
-           // Restart recognition if it stops unexpectedly
-           recognitionRef.current?.start();
-        }
-      };
-      
-      recognitionRef.current.onresult = (event) => {
-         let interimTranscript = '';
-        let finalTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        
-        if (finalTranscript) {
-          handleSendMessage(finalTranscript.trim());
-        } else if (interimTranscript) {
-            // You can optionally display the interim transcript in the UI
-            // setMessage(interimTranscript); 
-        }
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error:", event.error, event.message);
-        let errorMsg = `An error occurred: ${event.error}.`;
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings. For Chrome, click the lock icon in the address bar. For other browsers, check site settings.";
-        } else if (event.error === 'no-speech') {
-          errorMsg = "No speech detected. Please make sure your microphone is working and try again.";
-        } else if (event.error === 'network') {
-          errorMsg = "Network error. The Web Speech API requires an internet connection. Please check yours and try again.";
-        } else if (event.error === 'audio-capture') {
-          errorMsg = "Audio capture error. Your microphone might be in use by another application.";
-        }
-        if (event.error !== 'aborted') {
-            setVoiceError(errorMsg);
-        }
-        setIsListening(false);
-      };
-      
-    } else {
-        setVoiceError("Voice recognition is not supported on this browser. For best results, please use Google Chrome on a desktop computer.");
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.onstart = null;
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.abort();
-      }
-      synthRef.current?.cancel();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isListening]);
-
-  useEffect(() => {
-    if (voices.length > 0) {
-      const voice = voices.find(v => v.name === settings.voiceName);
-      setSelectedVoice(voice || voices[0]);
-    }
-  }, [settings.voiceName, voices]);
-
-
-  const handleSendMessage = async (messageText?: string) => {
+  const handleSendMessage = useCallback(async (messageText?: string) => {
     const textToSend = messageText || message;
     if (!textToSend.trim() || isProcessing) return;
 
-    if (isListening) {
-      toggleListening();
+    // Stop listening if it's active
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
     }
+    setIsListening(false);
 
-    const userMessage: Message = { role: "user", content: textToSend };
-    setConversation((prev) => [...prev, userMessage]);
     setMessage("");
     setIsProcessing(true);
     setAvatarMood("thinking");
+
+    const userMessage: Message = { role: "user", content: textToSend };
+    setConversation((prev) => [...prev, userMessage]);
 
     try {
       const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
@@ -212,36 +106,114 @@ const ConversationalAvatar = () => {
       speak(aiResponse);
     } catch(e) {
       console.error(e);
-      const assistantMessage: Message = { role: "assistant", content: "Sorry, I had trouble generating a response." };
+      const errorMessage = "Sorry, I had trouble generating a response.";
+      const assistantMessage: Message = { role: "assistant", content: errorMessage };
       setConversation((prev) => [...prev, assistantMessage]);
-      speak(assistantMessage.content);
+      speak(errorMessage);
     } finally {
       setIsProcessing(false);
-      setAvatarMood("neutral");
+      if (!isSpeaking) {
+         setAvatarMood("neutral");
+      }
     }
-  };
+  }, [message, isProcessing, isListening, conversation, speak, isSpeaking]);
+
+  useEffect(() => {
+    if(!isMounted) return;
+
+    // Speech Synthesis
+    synthRef.current = window.speechSynthesis;
+    const loadVoices = () => {
+      if(!synthRef.current) return;
+      const availableVoices = synthRef.current.getVoices();
+      if (availableVoices.length === 0) return;
+      setVoices(availableVoices);
+      
+      let voiceToSelect: SpeechSynthesisVoice | undefined;
+      if (settings.voiceName) {
+        voiceToSelect = availableVoices.find(v => v.name === settings.voiceName);
+      }
+      if (!voiceToSelect) {
+        voiceToSelect = availableVoices.find(v => v.lang.startsWith('en-US')) || 
+                        availableVoices.find(v => v.lang.startsWith('en')) || 
+                        availableVoices[0];
+      }
+      setSelectedVoice(voiceToSelect || null);
+    };
+
+    loadVoices();
+    if (synthRef.current.onvoiceschanged !== undefined) {
+      synthRef.current.onvoiceschanged = loadVoices;
+    }
+
+    // Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const hasSpeechRecognition = !!SpeechRecognition;
+    setSpeechRecognitionAvailable(hasSpeechRecognition);
+
+    if (hasSpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false; // Process after a pause in speech
+      recognition.interimResults = false; // We only want final results
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        handleSendMessage(transcript.trim());
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error, event.message);
+        let errorMsg = `An error occurred: ${event.error}.`;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings.";
+        } else if (event.error === 'no-speech') {
+          errorMsg = "No speech detected. Please try again.";
+        } else if (event.error === 'network') {
+          errorMsg = "A network error occurred with the speech recognition service.";
+        } else if (event.error === 'audio-capture') {
+          errorMsg = "Audio capture failed. Your microphone might be in use by another application.";
+        }
+        setVoiceError(errorMsg);
+        setIsListening(false);
+      };
+      
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    } else {
+        setVoiceError("Voice recognition is not supported on this browser. For best results, use Google Chrome.");
+    }
+
+    return () => {
+      recognitionRef.current?.abort();
+      synthRef.current?.cancel();
+    };
+  }, [isMounted, settings.voiceName, handleSendMessage]);
+
+  useEffect(() => {
+    if (voices.length > 0) {
+      const voice = voices.find(v => v.name === settings.voiceName) || voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      setSelectedVoice(voice || null);
+    }
+  }, [settings.voiceName, voices]);
 
   const toggleListening = () => {
-    if (!recognitionRef.current) {
-        setVoiceError("Voice recognition is not initialized or supported.");
-        return;
-    }
+    if (!recognitionRef.current || isProcessing || isSpeaking) return;
 
     if (isListening) {
       recognitionRef.current.stop();
-      setIsListening(false);
     } else {
       try {
         setVoiceError('');
-        recognitionRef.current.start();
         setIsListening(true);
+        recognitionRef.current.start();
       } catch (error: any) {
         console.error("Could not start recognition:", error);
-         let errorMsg = "Could not start voice recognition. Please check browser permissions and ensure your microphone is not in use.";
-         if (error.name === 'InvalidStateError') {
-           errorMsg = "Please wait a moment before trying again. The voice recognition service is still closing from the last use.";
-         }
-        setVoiceError(errorMsg);
+        setVoiceError("Could not start voice recognition. Please try again.");
         setIsListening(false);
       }
     }
@@ -258,9 +230,16 @@ const ConversationalAvatar = () => {
     setConversation([]);
     stopSpeaking();
   };
-
+  
   if (!isMounted) {
-    return null; // or a loading spinner
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="flex items-center gap-2 text-white">
+           <div className="w-5 h-5 border-t-2 border-cyan-400 rounded-full animate-spin"></div>
+           <span>Initializing Avatar...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -280,7 +259,7 @@ const ConversationalAvatar = () => {
           messagesEndRef={messagesEndRef}
           message={message}
           setMessage={setMessage}
-          handleSendMessage={handleSendMessage}
+          handleSendMessage={() => handleSendMessage()}
           isListening={isListening}
           toggleListening={toggleListening}
           speechRecognitionAvailable={speechRecognitionAvailable}
@@ -305,5 +284,3 @@ const ConversationalAvatar = () => {
 };
 
 export default ConversationalAvatar;
-
-    
