@@ -18,7 +18,7 @@ const presetAvatars: PresetAvatar[] = [
     { name: 'Professional Male', id: '6549c5e1b68e59e8f3f5e4d1', description: 'Business professional' },
     { name: 'Casual Female', id: '654b9012b68e59e8f3f5e4d4', description: 'A friendly and casual look' },
     { name: 'Stylized Male', id: '6460d39327d6f560e28bc026', description: 'A stylized character' },
-    { name: 'Sci-fi Female', id: '6460d26727d6f560e28bc01d', description: 'A futuristic look' }
+    { name: 'Cyberpunk Visionary', id: '66302498293c3fda152174f1', description: 'A futuristic look with a punk edge' }
 ];
 
 const SettingsPanel = ({
@@ -150,7 +150,7 @@ const SettingsPanel = ({
             Create your avatar at <a href="https://readyplayer.me" target="_blank" rel="noopener noreferrer" className="underline hover:text-cyan-300">readyplayer.me</a>
           </p>
            <p className="text-emerald-400/90 text-xs mt-1 font-semibold">
-                ✅ Settings persist even after refresh!
+                ✅ Settings are now saved to your account!
               </p>
         </div>
 

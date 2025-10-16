@@ -1,6 +1,8 @@
 "use client";
 
-import { Settings, Sparkles } from "lucide-react";
+import { Settings, Sparkles, LogOut } from "lucide-react";
+import { useAuth as useFirebaseAuth } from "@/firebase";
+import { useRouter } from "next/navigation";
 
 type AvatarHeaderProps = {
   isSpeaking: boolean;
@@ -8,6 +10,14 @@ type AvatarHeaderProps = {
 };
 
 const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
+  const auth = useFirebaseAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/login");
+  };
+
   return (
     <header className="bg-black/40 backdrop-blur-md border-b border-cyan-400/30 p-4 flex items-center justify-between shadow-lg shadow-cyan-500/10">
       <div className="flex items-center gap-3">
@@ -38,6 +48,13 @@ const AvatarHeader = ({ isSpeaking, openSettings }: AvatarHeaderProps) => {
           aria-label="Open settings"
         >
           <Settings className="w-5 h-5 md:w-6 md:h-6 text-cyan-300" />
+        </button>
+        <button
+          onClick={handleLogout}
+          className="p-2 bg-rose-500/20 hover:bg-rose-500/40 rounded-lg transition-all duration-300 shadow-lg shadow-rose-500/20"
+          aria-label="Logout"
+        >
+          <LogOut className="w-5 h-5 md:w-6 md:h-6 text-rose-300" />
         </button>
       </div>
     </header>

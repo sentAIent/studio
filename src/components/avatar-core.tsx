@@ -4,14 +4,21 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { Message, AvatarMood, AvatarSettings } from "@/lib/types";
 import { getAiResponse } from "@/app/actions";
-import useLocalStorage from "@/hooks/use-local-storage";
+import { useUser, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import AvatarHeader from "./avatar-header";
 import AvatarDisplay from "./avatar-display";
 import ChatPanel from "./chat-panel";
 import SettingsPanel from "./settings-panel";
+import { useToast } from "@/hooks/use-toast";
 
 const AvatarCore = () => {
-  const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const [settings, setSettings] = useState<AvatarSettings>({
     avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
     volume: 1.0,
     speechRate: 1.0,
@@ -34,10 +41,40 @@ const AvatarCore = () => {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  const settingsDocRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, `users/${user.uid}/avatarSettings`, "default");
+  }, [user, firestore]);
+
   useEffect(() => {
     setIsClient(true);
-  }, []);
 
+    if (!settingsDocRef) return;
+    const unsubscribe = onSnapshot(settingsDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            setSettings(docSnap.data() as AvatarSettings);
+        } else {
+            // If no settings exist, create them with default values
+            setDocumentNonBlocking(settingsDocRef, settings, { merge: true });
+        }
+    }, (error) => {
+        console.error("Error fetching settings:", error);
+        toast({
+            variant: "destructive",
+            title: "Error loading settings",
+            description: "Could not load your saved settings from the database."
+        });
+    });
+    return () => unsubscribe();
+  }, [settingsDocRef, toast, settings]);
+
+  const handleUpdateSettings = (newSettings: AvatarSettings) => {
+      setSettings(newSettings);
+      if (settingsDocRef) {
+          setDocumentNonBlocking(settingsDocRef, newSettings, { merge: true });
+      }
+  };
+  
   const speak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
     
@@ -293,7 +330,7 @@ const AvatarCore = () => {
       {showSettingsPanel && (
         <SettingsPanel
           settings={settings}
-          setSettings={setSettings}
+          setSettings={handleUpdateSettings}
           voices={voices}
           selectedVoice={selectedVoice}
           setSelectedVoice={setSelectedVoice}
