@@ -1,15 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import {
-  Mic,
-  MicOff,
-  Send,
-  Settings,
-  Sparkles,
-  Zap,
-} from "lucide-react";
-import type { Message, AvatarMood, AvatarSettings, PresetAvatar } from "@/lib/types";
+import type { Message, AvatarMood, AvatarSettings } from "@/lib/types";
 import { getAiResponse } from "@/app/actions";
 import useLocalStorage from "@/hooks/use-local-storage";
 import AvatarHeader from "./avatar-header";
@@ -118,7 +110,10 @@ const ConversationalAvatar = () => {
       recognitionRef.current.interimResults = false;
       recognitionRef.current.lang = 'en-US';
 
-      recognitionRef.current.onstart = () => setIsListening(true);
+      recognitionRef.current.onstart = () => {
+        setIsListening(true);
+      };
+      
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
@@ -166,8 +161,9 @@ const ConversationalAvatar = () => {
     if (!textToSend.trim()) return;
 
     // Stop listening if we were
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
     }
 
     const userMessage: Message = { role: "user", content: textToSend };
@@ -207,12 +203,7 @@ const ConversationalAvatar = () => {
         recognitionRef.current.start();
       } catch (error) {
         console.error("Could not start recognition:", error);
-        if (error instanceof Error && error.name === 'InvalidStateError') {
-            // Already listening, so we stop it.
-            recognitionRef.current.stop();
-        } else {
-            setVoiceError("Could not start voice recognition. It might be already active or an error occurred.");
-        }
+        setVoiceError("Could not start voice recognition. Please check browser permissions.");
       }
     }
   };
