@@ -1,27 +1,133 @@
 'use client';
 
-import { Package } from 'lucide-react';
+import Image from 'next/image';
+import { MoreHorizontal, PlusCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import DashboardLayout from '@/components/dashboard-layout';
+
+const products = [
+  {
+    name: 'Laser-Cut Chair',
+    status: 'Active',
+    price: '$49.99',
+    stock: 25,
+    image: 'https://picsum.photos/seed/p1/400/300',
+    imageHint: 'modern chair',
+  },
+  {
+    name: '3D-Printed Vase',
+    status: 'Active',
+    price: '$29.99',
+    stock: 120,
+    image: 'https://picsum.photos/seed/p2/400/300',
+    imageHint: 'geometric vase',
+  },
+  {
+    name: 'CNC-Milled Desk Organizer',
+    status: 'Archived',
+    price: '$79.99',
+    stock: 0,
+    image: 'https://picsum.photos/seed/p3/400/300',
+    imageHint: 'wood organizer',
+  },
+  {
+    name: 'Engraved Coasters (Set of 4)',
+    status: 'Active',
+    price: '$19.99',
+    stock: 200,
+    image: 'https://picsum.photos/seed/p4/400/300',
+    imageHint: 'slate coasters',
+  },
+  {
+    name: 'Custom Vinyl Decal',
+    status: 'Draft',
+    price: '$9.99',
+    stock: 500,
+    image: 'https://picsum.photos/seed/p5/400/300',
+    imageHint: 'laptop decal',
+  },
+];
 
 export default function ProductsPage() {
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-12">
-          <Package className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
-          <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-            Our Products
-          </h2>
-          <p className="mt-4 text-lg text-cyan-200/80">
-            Browse and manage your product catalog.
-          </p>
+      <Tabs defaultValue="all">
+        <div className="flex items-center">
+          <TabsList>
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="draft">Draft</TabsTrigger>
+            <TabsTrigger value="archived" className="hidden sm:flex">
+              Archived
+            </TabsTrigger>
+          </TabsList>
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" className="h-8 gap-1">
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Add Product
+              </span>
+            </Button>
+          </div>
         </div>
-        <div className="bg-slate-900/50 backdrop-blur-sm border-cyan-400/20 border rounded-lg p-8 text-center">
-          <p className="text-cyan-100/90">
-            Product catalog and management tools will be displayed here.
-          </p>
-        </div>
-      </div>
+        <TabsContent value="all">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {products.map((product) => (
+              <Card key={product.name}>
+                <CardHeader>
+                  <CardTitle>{product.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Image
+                    alt={product.name}
+                    className="aspect-square w-full rounded-md object-cover"
+                    height="200"
+                    src={product.image}
+                    width="200"
+                    data-ai-hint={product.imageHint}
+                  />
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {product.price}
+                  </div>
+                   <Badge variant={product.status === "Active" ? "default" : "secondary"}>{product.status}</Badge>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 }
