@@ -11,6 +11,7 @@ import ChatPanel from "./chat-panel";
 import SettingsPanel from "./settings-panel";
 
 const ConversationalAvatar = () => {
+  const [isMounted, setIsMounted] = useState(false);
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
     avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
     volume: 1.0,
@@ -29,7 +30,6 @@ const ConversationalAvatar = () => {
   const [speechRecognitionAvailable, setSpeechRecognitionAvailable] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -85,7 +85,6 @@ const ConversationalAvatar = () => {
     const textToSend = messageText || message;
     if (!textToSend.trim() || isProcessing) return;
 
-    // Stop listening if it's active
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
     }
@@ -96,10 +95,11 @@ const ConversationalAvatar = () => {
     setAvatarMood("thinking");
 
     const userMessage: Message = { role: "user", content: textToSend };
-    setConversation((prev) => [...prev, userMessage]);
+    const newConversation = [...conversation, userMessage];
+    setConversation(newConversation);
 
     try {
-      const aiResponse = await getAiResponse([...conversation, userMessage], textToSend);
+      const aiResponse = await getAiResponse(newConversation, textToSend);
       
       const assistantMessage: Message = { role: "assistant", content: aiResponse };
       setConversation((prev) => [...prev, assistantMessage]);
@@ -121,7 +121,6 @@ const ConversationalAvatar = () => {
   useEffect(() => {
     if(!isMounted) return;
 
-    // Speech Synthesis
     synthRef.current = window.speechSynthesis;
     const loadVoices = () => {
       if(!synthRef.current) return;
@@ -146,24 +145,32 @@ const ConversationalAvatar = () => {
       synthRef.current.onvoiceschanged = loadVoices;
     }
 
-    // Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const hasSpeechRecognition = !!SpeechRecognition;
     setSpeechRecognitionAvailable(hasSpeechRecognition);
 
     if (hasSpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false; // Process after a pause in speech
-      recognition.interimResults = false; // We only want final results
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        handleSendMessage(transcript.trim());
-        setIsListening(false);
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            }
+        }
+        if (finalTranscript) {
+          handleSendMessage(finalTranscript.trim());
+        }
       };
 
       recognition.onerror = (event) => {
+        if (event.error === 'aborted') {
+          return;
+        }
         console.error("Speech recognition error:", event.error, event.message);
         let errorMsg = `An error occurred: ${event.error}.`;
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -177,6 +184,10 @@ const ConversationalAvatar = () => {
         }
         setVoiceError(errorMsg);
         setIsListening(false);
+      };
+      
+      recognition.onstart = () => {
+        setIsListening(true);
       };
       
       recognition.onend = () => {
@@ -202,14 +213,13 @@ const ConversationalAvatar = () => {
   }, [settings.voiceName, voices]);
 
   const toggleListening = () => {
-    if (!recognitionRef.current || isProcessing || isSpeaking) return;
+    if (!recognitionRef.current || isProcessing) return;
 
     if (isListening) {
       recognitionRef.current.stop();
     } else {
       try {
         setVoiceError('');
-        setIsListening(true);
         recognitionRef.current.start();
       } catch (error: any) {
         console.error("Could not start recognition:", error);
@@ -284,3 +294,4 @@ const ConversationalAvatar = () => {
 };
 
 export default ConversationalAvatar;
+
