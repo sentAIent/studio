@@ -47,7 +47,7 @@ const ConversationalAvatar = () => {
   useEffect(() => {
     scrollToBottom();
   }, [conversation, isProcessing]);
-  
+
   const speak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
     
@@ -81,24 +81,24 @@ const ConversationalAvatar = () => {
 
     synth.speak(utterance);
   }, [selectedVoice, settings.speechRate, settings.volume]);
-
+  
   const handleSendMessage = useCallback(async (messageText?: string) => {
     const textToSend = messageText || message;
     if (!textToSend.trim() || isProcessing) return;
-
+  
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
     }
     setIsListening(false);
-
+  
     setMessage("");
     setIsProcessing(true);
     setAvatarMood("thinking");
-
+  
     const userMessage: Message = { role: "user", content: textToSend };
     const newConversation = [...conversation, userMessage];
     setConversation(newConversation);
-
+  
     try {
       const aiResponse = await getAiResponse(newConversation, textToSend);
       
@@ -153,9 +153,17 @@ const ConversationalAvatar = () => {
     if (hasSpeechRecognition) {
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
+      recognition.continuous = true;
+      recognition.interimResults = false;
 
       recognition.onresult = (event) => {
-        const transcript = event.results[event.results.length - 1][0].transcript.trim();
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        const transcript = finalTranscript.trim();
         if (transcript) {
           handleSendMessage(transcript);
         }
@@ -170,7 +178,7 @@ const ConversationalAvatar = () => {
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings.";
         } else if (event.error === 'no-speech') {
-          errorMsg = "No speech detected. Please try again.";
+          errorMsg = "No speech was detected. Please ensure your microphone is working.";
         } else if (event.error === 'network') {
           errorMsg = "A network error occurred with the speech recognition service.";
         } else if (event.error === 'audio-capture') {
@@ -288,4 +296,3 @@ const ConversationalAvatar = () => {
 };
 
 export default ConversationalAvatar;
-
