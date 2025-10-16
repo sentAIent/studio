@@ -66,7 +66,7 @@ const AvatarCore = () => {
         });
     });
     return () => unsubscribe();
-  }, [settingsDocRef, toast, settings]);
+  }, [settingsDocRef]);
 
   const handleUpdateSettings = (newSettings: AvatarSettings) => {
       setSettings(newSettings);
