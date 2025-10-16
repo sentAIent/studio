@@ -34,10 +34,10 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
 /**
  * Initiates an addDoc operation for a collection reference.
  * Does NOT await the write operation internally.
- * Returns the Promise for the new doc ref, but typically not awaited by caller.
+ * Does NOT return a promise to prevent unhandled promise rejections.
  */
-export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
-  const promise = addDoc(colRef, data)
+export function addDocumentNonBlocking(colRef: CollectionReference, data: any): void {
+  addDoc(colRef, data)
     .catch(error => {
       errorEmitter.emit(
         'permission-error',
@@ -47,6 +47,27 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
           requestResourceData: data,
         })
       )
+    });
+}
+
+/**
+ * Initiates an addDoc operation for a collection reference and returns the promise.
+ * Used when the document ID is needed immediately after creation.
+ * The caller is responsible for handling the promise rejection.
+ */
+export function addDocumentBlocking(colRef: CollectionReference, data: any) {
+  const promise = addDoc(colRef, data)
+    .catch(error => {
+      errorEmitter.emit(
+        'permission-error',
+        new FirestorePermissionError({
+          path: colRef.path,
+          operation: 'create',
+          requestResourceData: data,
+        })
+      );
+      // Re-throw the error to be caught by the caller
+      throw error;
     });
   return promise;
 }
@@ -59,7 +80,7 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
 export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
   updateDoc(docRef, data)
     .catch(error => {
-      errorEmitter.emit(
+      errorEmitter-emit(
         'permission-error',
         new FirestorePermissionError({
           path: docRef.path,

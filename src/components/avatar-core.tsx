@@ -5,8 +5,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { Message, AvatarMood, AvatarSettings } from "@/lib/types";
 import { getAiResponse, getSynthesizedSpeech } from "@/app/actions";
 import { useUser, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, onSnapshot, addDoc, query, orderBy, limit, Timestamp } from 'firebase/firestore';
-import { setDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { collection, doc, onSnapshot, query, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { setDocumentNonBlocking, addDocumentNonBlocking, addDocumentBlocking } from "@/firebase/non-blocking-updates";
 import AvatarHeader from "./avatar-header";
 import AvatarDisplay from "./avatar-display";
 import ChatPanel from "./chat-panel";
@@ -98,7 +98,7 @@ const AvatarCore = () => {
         } else {
             // No conversations exist, create one
             if(conversationColRef) {
-                addDocumentNonBlocking(conversationColRef, { timestamp: Timestamp.now() }).then(docRef => {
+                addDocumentBlocking(conversationColRef, { timestamp: Timestamp.now() }).then(docRef => {
                     if (docRef) {
                       setCurrentConversationId(docRef.id);
                     }
@@ -127,32 +127,38 @@ const AvatarCore = () => {
     setIsSpeaking(true);
     setAvatarMood("talking");
 
-    const audioDataUri = await getSynthesizedSpeech(text, settings.voiceName);
+    try {
+        const audioDataUri = await getSynthesizedSpeech(text, settings.voiceName);
 
-    if (audioDataUri) {
-      if (audioRef.current) {
-        audioRef.current.src = audioDataUri;
-        audioRef.current.volume = settings.volume;
-        audioRef.current.play().catch(e => console.error("Audio playback error:", e));
-
-        audioRef.current.onended = () => {
-          setIsSpeaking(false);
-          setAvatarMood("neutral");
-        };
-        audioRef.current.onerror = (e) => {
-            console.error("Audio element error:", e);
+        if (audioDataUri) {
+          if (audioRef.current) {
+            audioRef.current.src = audioDataUri;
+            audioRef.current.volume = settings.volume;
+            audioRef.current.play().catch(e => console.error("Audio playback error:", e));
+    
+            audioRef.current.onended = () => {
+              setIsSpeaking(false);
+              setAvatarMood("neutral");
+            };
+            audioRef.current.onerror = (e) => {
+                console.error("Audio element error:", e);
+                setIsSpeaking(false);
+                setAvatarMood("neutral");
+            }
+          }
+        } else {
             setIsSpeaking(false);
             setAvatarMood("neutral");
+            toast({
+                variant: "destructive",
+                title: "Speech Synthesis Failed",
+                description: "Could not generate audio for the response."
+            });
         }
-      }
-    } else {
+    } catch (error) {
+        console.error("Error in speak function:", error);
         setIsSpeaking(false);
         setAvatarMood("neutral");
-        toast({
-            variant: "destructive",
-            title: "Speech Synthesis Failed",
-            description: "Could not generate audio for the response."
-        });
     }
   }, [isClient, settings.voiceName, settings.volume, toast]);
   
@@ -169,27 +175,32 @@ const AvatarCore = () => {
   
     // Optimistically update UI
     setConversation(currentConversation);
-  
-    const aiResponse = await getAiResponse(currentConversation, textToSend);
-    const assistantMessage: Message = { role: "assistant", content: aiResponse };
-  
-    // Save messages to Firestore (non-blocking)
-    if (firestore && conversationColRef && currentConversationId) {
-      const messagesRef = collection(
-        firestore,
-        conversationColRef.path,
-        currentConversationId,
-        'messages'
-      );
-      addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
-      addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
+
+    try {
+        const aiResponse = await getAiResponse(currentConversation, textToSend);
+        const assistantMessage: Message = { role: "assistant", content: aiResponse };
+    
+        // Save messages to Firestore (non-blocking)
+        if (firestore && conversationColRef && currentConversationId) {
+        const messagesRef = collection(
+            firestore,
+            conversationColRef.path,
+            currentConversationId,
+            'messages'
+        );
+        addDocumentNonBlocking(messagesRef, { ...userMessage, timestamp: Timestamp.now() });
+        addDocumentNonBlocking(messagesRef, { ...assistantMessage, timestamp: Timestamp.now() });
+        }
+    
+        // The snapshot listener will eventually update the conversation state from Firestore,
+        // but we can speak the response immediately.
+        speak(aiResponse);
+    } catch (error) {
+        console.error("Error processing message:", error);
+        // Optionally show a toast or message to the user
+    } finally {
+        setIsProcessing(false);
     }
-  
-    // The snapshot listener will eventually update the conversation state from Firestore,
-    // but we can speak the response immediately.
-    speak(aiResponse);
-    setIsProcessing(false);
-    // The 'talking' mood is set in speak(), and will be set to 'neutral' when speech ends.
   
   }, [message, isProcessing, conversation, speak, firestore, conversationColRef, currentConversationId]);
 
@@ -286,13 +297,16 @@ const AvatarCore = () => {
     setAvatarMood("neutral");
   };
 
-  const clearConversation = async () => {
+  const clearConversation = () => {
       stopSpeaking();
       setConversation([]);
       if(conversationColRef) {
-        // Start a new conversation document
-        const newConvDoc = await addDoc(conversationColRef, { timestamp: Timestamp.now() });
-        setCurrentConversationId(newConvDoc.id);
+        // Start a new conversation document, non-blocking
+        addDocumentBlocking(conversationColRef, { timestamp: Timestamp.now() })
+            .then(newConvDoc => {
+                setCurrentConversationId(newConvDoc.id);
+            })
+            .catch(err => console.error("Failed to create new conversation:", err));
       }
   };
 
