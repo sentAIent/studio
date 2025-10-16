@@ -80,7 +80,7 @@ export function addDocumentBlocking(colRef: CollectionReference, data: any) {
 export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
   updateDoc(docRef, data)
     .catch(error => {
-      errorEmitter-emit(
+      errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
           path: docRef.path,
