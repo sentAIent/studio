@@ -12,7 +12,6 @@ import SettingsPanel from "./settings-panel";
 
 const ConversationalAvatar = () => {
   const [isMounted, setIsMounted] = useState(false);
-  
   const [settings, setSettings] = useLocalStorage<AvatarSettings>("avatar-settings", {
     avatarUrl: "6549c5e1b68e59e8f3f5e4d1",
     volume: 1.0,
@@ -38,6 +37,10 @@ const ConversationalAvatar = () => {
 
   useEffect(() => {
     setIsMounted(true);
+    setSpeechRecognitionAvailable(
+      typeof window !== "undefined" &&
+        ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
+    );
   }, []);
 
   const speak = useCallback((text: string) => {
@@ -81,7 +84,6 @@ const ConversationalAvatar = () => {
 
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
-      setIsListening(false);
     }
   
     setMessage("");
@@ -113,69 +115,64 @@ const ConversationalAvatar = () => {
         }
       }, 200)
     }
-  }, [message, isProcessing, isListening, conversation, getAiResponse, speak, isSpeaking]);
+  }, [message, isProcessing, isListening, conversation, speak, isSpeaking]);
+
 
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !speechRecognitionAvailable) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const hasSpeechRecognition = !!SpeechRecognition;
-    setSpeechRecognitionAvailable(hasSpeechRecognition);
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    
+    recognitionRef.current = recognition;
 
-    if (hasSpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
-      recognition.continuous = true;
+    recognition.onstart = () => {
+      setIsListening(true);
+      setVoiceError('');
+    };
 
-      recognition.onstart = () => {
-        setIsListening(true);
-        setVoiceError('');
-      };
+    recognition.onend = () => {
+      setIsListening(false);
+    };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.onresult = (event) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          }
+    recognition.onresult = (event) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
         }
-        if (finalTranscript) {
-          handleSendMessage(finalTranscript);
-        }
-      };
-      
-      recognition.onerror = (event) => {
-        if (event.error === 'aborted') {
-          return;
-        }
-        let errorMsg = `An error occurred with speech recognition: ${event.error}.`;
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings and try again.";
-        } else if (event.error === 'no-speech') {
-          errorMsg = "No speech was detected. Please make sure your microphone is working and try again.";
-        } else if (event.error === 'network') {
-          errorMsg = "A network error occurred with the speech recognition service. Please check your internet connection.";
-        } else if (event.error === 'audio-capture') {
-          errorMsg = "Audio capture failed. Your microphone might be in use by another application or not connected properly.";
-        }
-        setVoiceError(errorMsg);
-        console.error("Speech recognition error:", event.error, event.message);
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-    } else {
-      setVoiceError("Voice recognition is not supported on this browser. For the best experience, please use Google Chrome on a desktop computer.");
-    }
+      }
+      if (finalTranscript) {
+        handleSendMessage(finalTranscript);
+      }
+    };
+    
+    recognition.onerror = (event) => {
+      if (event.error === 'aborted') {
+        return;
+      }
+      let errorMsg = `An error occurred with speech recognition: ${event.error}.`;
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings and try again.";
+      } else if (event.error === 'no-speech') {
+        errorMsg = "No speech was detected. Please make sure your microphone is working and try again.";
+      } else if (event.error === 'network') {
+        errorMsg = "A network error occurred with the speech recognition service. Please check your internet connection.";
+      } else if (event.error === 'audio-capture') {
+        errorMsg = "Audio capture failed. Your microphone might be in use by another application or not connected properly.";
+      }
+      setVoiceError(errorMsg);
+      console.error("Speech recognition error:", event.error, event.message);
+      setIsListening(false);
+    };
     
     return () => {
       recognitionRef.current?.abort();
     };
-  }, [isMounted, handleSendMessage]);
+  }, [isMounted, speechRecognitionAvailable, handleSendMessage]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
