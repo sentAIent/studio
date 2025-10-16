@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -28,10 +29,15 @@ const ConversationalAvatar = () => {
   const [speechRecognitionAvailable, setSpeechRecognitionAvailable] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -105,26 +111,43 @@ const ConversationalAvatar = () => {
     setSpeechRecognitionAvailable(hasSpeechRecognition);
 
     if (hasSpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
 
-      recognition.onstart = () => {
+      recognitionRef.current.onstart = () => {
         setIsListening(true);
         setVoiceError('');
       };
       
-      recognition.onend = () => {
-        setIsListening(false);
+      recognitionRef.current.onend = () => {
+        if (isListening) {
+           // Restart recognition if it stops unexpectedly
+           recognitionRef.current?.start();
+        }
       };
       
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        handleSendMessage(transcript);
+      recognitionRef.current.onresult = (event) => {
+         let interimTranscript = '';
+        let finalTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        if (finalTranscript) {
+          handleSendMessage(finalTranscript.trim());
+        } else if (interimTranscript) {
+            // You can optionally display the interim transcript in the UI
+            // setMessage(interimTranscript); 
+        }
       };
 
-      recognition.onerror = (event) => {
+      recognitionRef.current.onerror = (event) => {
         console.error("Speech recognition error:", event.error, event.message);
         let errorMsg = `An error occurred: ${event.error}.`;
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -135,9 +158,6 @@ const ConversationalAvatar = () => {
           errorMsg = "Network error. The Web Speech API requires an internet connection. Please check yours and try again.";
         } else if (event.error === 'audio-capture') {
           errorMsg = "Audio capture error. Your microphone might be in use by another application.";
-        } else if (event.error === 'aborted') {
-          // This can be triggered by the user stopping the recognition, so we don't always show an error.
-          // errorMsg = "Voice input was aborted.";
         }
         if (event.error !== 'aborted') {
             setVoiceError(errorMsg);
@@ -145,17 +165,22 @@ const ConversationalAvatar = () => {
         setIsListening(false);
       };
       
-      recognitionRef.current = recognition;
     } else {
         setVoiceError("Voice recognition is not supported on this browser. For best results, please use Google Chrome on a desktop computer.");
     }
 
     return () => {
-      recognitionRef.current?.abort();
+      if (recognitionRef.current) {
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.abort();
+      }
       synthRef.current?.cancel();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isListening]);
 
   useEffect(() => {
     if (voices.length > 0) {
@@ -170,8 +195,7 @@ const ConversationalAvatar = () => {
     if (!textToSend.trim() || isProcessing) return;
 
     if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
+      toggleListening();
     }
 
     const userMessage: Message = { role: "user", content: textToSend };
@@ -205,10 +229,12 @@ const ConversationalAvatar = () => {
 
     if (isListening) {
       recognitionRef.current.stop();
+      setIsListening(false);
     } else {
       try {
         setVoiceError('');
         recognitionRef.current.start();
+        setIsListening(true);
       } catch (error: any) {
         console.error("Could not start recognition:", error);
          let errorMsg = "Could not start voice recognition. Please check browser permissions and ensure your microphone is not in use.";
@@ -232,6 +258,10 @@ const ConversationalAvatar = () => {
     setConversation([]);
     stopSpeaking();
   };
+
+  if (!isMounted) {
+    return null; // or a loading spinner
+  }
 
   return (
     <div className="h-screen w-full flex flex-col overflow-hidden">
@@ -275,3 +305,5 @@ const ConversationalAvatar = () => {
 };
 
 export default ConversationalAvatar;
+
+    
