@@ -1,0 +1,166 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the AvatarSpeak application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "username": {
+          "type": "string",
+          "description": "The username of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email"
+      ]
+    },
+    "AvatarSetting": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AvatarSetting",
+      "type": "object",
+      "description": "Stores avatar settings for a user, including the avatar ID, volume, speech rate and selected voice.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the avatar setting."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N AvatarSetting)"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "The URL or ID of the selected avatar."
+        },
+        "volume": {
+          "type": "number",
+          "description": "The volume setting for the avatar's speech.",
+          "format": "float"
+        },
+        "speechRate": {
+          "type": "number",
+          "description": "The speech rate setting for the avatar's speech.",
+          "format": "float"
+        },
+        "voiceName": {
+          "type": "string",
+          "description": "The name of the selected voice for the avatar."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "avatarUrl",
+        "volume",
+        "speechRate"
+      ]
+    },
+    "Conversation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Conversation",
+      "type": "object",
+      "description": "Represents a conversation between the user and the AI assistant.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the conversation."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Conversation)"
+        },
+        "messages": {
+          "type": "array",
+          "description": "Array of messages in the conversation.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "messages"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Only the authenticated user can read/write their own profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/avatarSettings/{avatarSettingId}",
+        "definition": {
+          "entityName": "AvatarSetting",
+          "schema": {
+            "$ref": "#/backend/entities/AvatarSetting"
+          },
+          "description": "Stores avatar settings for each user. Path-based ownership ensures only the user can access their own settings.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "avatarSettingId",
+              "description": "The unique identifier of the avatar setting."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/conversations/{conversationId}",
+        "definition": {
+          "entityName": "Conversation",
+          "schema": {
+            "$ref": "#/backend/entities/Conversation"
+          },
+          "description": "Stores conversations for each user. Path-based ownership ensures only the user can access their own conversations.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "conversationId",
+              "description": "The unique identifier of the conversation."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability, adhering to the specified principles. It leverages path-based ownership for user-specific data and avoids hierarchical authorization dependencies (`get()` calls) by denormalizing authorization context where necessary.\n\n*   **/users/{userId}:** Stores user profiles.  Security rules will ensure only the authenticated user can read/write their own profile. No denormalization needed as this is private user data.\n*   **/users/{userId}/avatarSettings/{avatarSettingId}:**  Stores avatar settings for each user.  Path-based ownership ensures only the user can access their own settings.\n*   **/users/{userId}/conversations/{conversationId}:** Stores conversations for each user. Path-based ownership ensures only the user can access their own conversations.\n\nThis structure facilitates secure `list` operations (QAPs) by segregating data based on ownership and authorization needs, thus making security rules simpler and more robust. No custom claims (DBAC) are used; authorization relies solely on `request.auth.uid`."
+  }
+}

@@ -1,0 +1,86 @@
+/**
+ * @file Firestore Security Rules for AvatarSpeak
+ * @core_philosophy This ruleset enforces a strict user-ownership model. Each user can only access their own data,
+ *                which is enforced through path-based authorization.
+ * @data_structure All data is nested under /users/{userId}, including profile information, avatar settings, and conversations.
+ * @key_security_decisions User listing is disallowed.  All write operations are validated against the authenticated
+ *                          user's ID. Data consistency between paths and document content is enforced on create
+ *                          and update operations to maintain relational integrity.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profiles.
+     * @path /users/{userId}
+     * @allow (create) Authenticated user creates their profile with matching userId.
+     * @allow (get, update, delete) Authenticated user reads/updates/deletes their own profile.
+     * @deny Any other user attempting to access another user's profile.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data.
+     */
+    match /users/{userId} {
+      // isOwner function to check if the requesting user is the owner of the resource
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      // isExistingOwner function to check if the requesting user is the owner of the resource AND that the resource exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to avatar settings for each user.
+     * @path /users/{userId}/avatarSettings/{avatarSettingId}
+     * @allow (create) Authenticated user creates avatar settings under their userId.
+     * @allow (get, update, delete) Authenticated user reads/updates/deletes their own avatar settings.
+     * @deny Any other user attempting to access another user's avatar settings.
+     * @principle Enforces path-based ownership and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/avatarSettings/{avatarSettingId} {
+      // isOwner function to check if the requesting user is the owner of the resource
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      // isExistingOwner function to check if the requesting user is the owner of the resource AND that the resource exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to conversations for each user.
+     * @path /users/{userId}/conversations/{conversationId}
+     * @allow (create) Authenticated user creates conversations under their userId.
+     * @allow (get, update, delete) Authenticated user reads/updates/deletes their own conversations.
+     * @deny Any other user attempting to access another user's conversations.
+     * @principle Enforces path-based ownership and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/conversations/{conversationId} {
+      // isOwner function to check if the requesting user is the owner of the resource
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      // isExistingOwner function to check if the requesting user is the owner of the resource AND that the resource exists
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
