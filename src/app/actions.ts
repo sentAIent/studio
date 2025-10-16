@@ -10,11 +10,13 @@ export async function getAiResponse(
   conversationHistory: Message[],
   userMessage: string
 ): Promise<string> {
+  const history = conversationHistory.map((msg) => ({
+    role: msg.role === "user" ? "user" : "model",
+    parts: [{ text: msg.content }],
+  }) as const);
+  
   const input: GenerateAiResponseInput = {
-    conversationHistory: conversationHistory.map((msg) => ({
-      role: msg.role === "user" ? "user" : "assistant",
-      content: msg.content,
-    })),
+    conversationHistory: history,
     userMessage: userMessage,
   };
 
