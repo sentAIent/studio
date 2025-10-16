@@ -34,7 +34,7 @@ const ConversationalAvatar = () => {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  
   const speak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
     
@@ -120,11 +120,10 @@ const ConversationalAvatar = () => {
     if (!recognitionAvailable) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    recognitionRef.current = new SpeechRecognition();
+    const recognition = recognitionRef.current;
     recognition.lang = 'en-US';
     recognition.continuous = true;
-    recognition.interimResults = false;
-    recognitionRef.current = recognition;
 
     recognition.onstart = () => {
       console.log("Recognition started");
@@ -140,7 +139,9 @@ const ConversationalAvatar = () => {
     recognition.onresult = (event) => {
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        finalTranscript += event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
       }
       console.log("Recognition result:", finalTranscript);
       if (finalTranscript) {
@@ -170,7 +171,9 @@ const ConversationalAvatar = () => {
     
     return () => {
       console.log("Cleaning up recognition");
-      recognitionRef.current?.abort();
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
     };
   }, [handleSendMessage]);
 
@@ -259,7 +262,7 @@ const ConversationalAvatar = () => {
   
   if (!isMounted) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
+      <div className="h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-cyan-950 to-teal-950">
         <div className="flex items-center gap-2 text-white">
            <div className="w-5 h-5 border-t-2 border-cyan-400 rounded-full animate-spin"></div>
            <span>Initializing Avatar...</span>
