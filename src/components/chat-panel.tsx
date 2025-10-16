@@ -99,7 +99,7 @@ const ChatPanel = ({
             <div className="flex items-start gap-2">
               <span className="text-lg pt-0.5">⚠️</span>
               <div className="flex-1">
-                <p className="font-medium mb-1">Voice Input Issue</p>
+                <p className="font-medium mb-1">Voice Input Error</p>
                 <p className="text-xs opacity-90">{voiceError}</p>
                 <button
                   onClick={() => setVoiceError("")}
@@ -179,3 +179,5 @@ const ChatPanel = ({
 };
 
 export default ChatPanel;
+
+    

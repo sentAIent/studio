@@ -35,24 +35,17 @@ const ConversationalAvatar = () => {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [conversation, isProcessing]);
 
   const speak = useCallback((text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
     
     const synth = window.speechSynthesis;
-    synth.cancel(); // Stop any previous speech
+    synthRef.current = synth;
+    synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     
     if (selectedVoice) {
@@ -81,15 +74,15 @@ const ConversationalAvatar = () => {
 
     synth.speak(utterance);
   }, [selectedVoice, settings.speechRate, settings.volume]);
-  
+
   const handleSendMessage = useCallback(async (messageText?: string) => {
     const textToSend = messageText || message;
     if (!textToSend.trim() || isProcessing) return;
-  
+
     if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
+      setIsListening(false);
     }
-    setIsListening(false);
   
     setMessage("");
     setIsProcessing(true);
@@ -113,12 +106,85 @@ const ConversationalAvatar = () => {
       speak(errorMessage);
     } finally {
       setIsProcessing(false);
-      if (!isSpeaking) {
-         setAvatarMood("neutral");
-      }
+      // a small delay to allow the speaking state to be set
+      setTimeout(() => {
+        if (!isSpeaking) {
+           setAvatarMood("neutral");
+        }
+      }, 200)
     }
-  }, [message, isProcessing, isListening, conversation, speak, isSpeaking]);
+  }, [message, isProcessing, isListening, conversation, getAiResponse, speak, isSpeaking]);
 
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const hasSpeechRecognition = !!SpeechRecognition;
+    setSpeechRecognitionAvailable(hasSpeechRecognition);
+
+    if (hasSpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.continuous = true;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setVoiceError('');
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          handleSendMessage(finalTranscript);
+        }
+      };
+      
+      recognition.onerror = (event) => {
+        if (event.error === 'aborted') {
+          return;
+        }
+        let errorMsg = `An error occurred with speech recognition: ${event.error}.`;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings and try again.";
+        } else if (event.error === 'no-speech') {
+          errorMsg = "No speech was detected. Please make sure your microphone is working and try again.";
+        } else if (event.error === 'network') {
+          errorMsg = "A network error occurred with the speech recognition service. Please check your internet connection.";
+        } else if (event.error === 'audio-capture') {
+          errorMsg = "Audio capture failed. Your microphone might be in use by another application or not connected properly.";
+        }
+        setVoiceError(errorMsg);
+        console.error("Speech recognition error:", event.error, event.message);
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    } else {
+      setVoiceError("Voice recognition is not supported on this browser. For the best experience, please use Google Chrome on a desktop computer.");
+    }
+    
+    return () => {
+      recognitionRef.current?.abort();
+    };
+  }, [isMounted, handleSendMessage]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [conversation, isProcessing]);
+  
   useEffect(() => {
     if(!isMounted) return;
 
@@ -145,67 +211,11 @@ const ConversationalAvatar = () => {
     if (synthRef.current.onvoiceschanged !== undefined) {
       synthRef.current.onvoiceschanged = loadVoices;
     }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const hasSpeechRecognition = !!SpeechRecognition;
-    setSpeechRecognitionAvailable(hasSpeechRecognition);
-
-    if (hasSpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
-      recognition.continuous = true;
-      recognition.interimResults = false;
-
-      recognition.onresult = (event) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          }
-        }
-        const transcript = finalTranscript.trim();
-        if (transcript) {
-          handleSendMessage(transcript);
-        }
-      };
-
-      recognition.onerror = (event) => {
-        if (event.error === 'aborted') {
-          return;
-        }
-        console.error("Speech recognition error:", event.error, event.message);
-        let errorMsg = `An error occurred: ${event.error}.`;
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          errorMsg = "Microphone access denied. Please allow microphone permissions in your browser settings.";
-        } else if (event.error === 'no-speech') {
-          errorMsg = "No speech was detected. Please ensure your microphone is working.";
-        } else if (event.error === 'network') {
-          errorMsg = "A network error occurred with the speech recognition service.";
-        } else if (event.error === 'audio-capture') {
-          errorMsg = "Audio capture failed. Your microphone might be in use by another application.";
-        }
-        setVoiceError(errorMsg);
-        setIsListening(false);
-      };
-      
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-      
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-    } else {
-        setVoiceError("Voice recognition is not supported on this browser. For best results, use Google Chrome.");
-    }
-
+    
     return () => {
-      recognitionRef.current?.abort();
       synthRef.current?.cancel();
     };
-  }, [isMounted, settings.voiceName, handleSendMessage]);
+  }, [isMounted, settings.voiceName]);
 
   useEffect(() => {
     if (voices.length > 0) {
@@ -215,7 +225,7 @@ const ConversationalAvatar = () => {
   }, [settings.voiceName, voices]);
 
   const toggleListening = () => {
-    if (!recognitionRef.current || isProcessing) return;
+    if (isProcessing || !recognitionRef.current) return;
 
     if (isListening) {
       recognitionRef.current.stop();
@@ -225,12 +235,12 @@ const ConversationalAvatar = () => {
         recognitionRef.current.start();
       } catch (error: any) {
         console.error("Could not start recognition:", error);
-        setVoiceError("Could not start voice recognition. Please try again.");
+        setVoiceError("Could not start voice recognition. Please ensure your browser has microphone permissions enabled.");
         setIsListening(false);
       }
     }
   };
-
+  
   const stopSpeaking = () => {
     if (!synthRef.current) return;
     synthRef.current.cancel();
@@ -296,3 +306,5 @@ const ConversationalAvatar = () => {
 };
 
 export default ConversationalAvatar;
+
+    
