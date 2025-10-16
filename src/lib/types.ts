@@ -14,6 +14,6 @@ export type PresetAvatar = {
 export type AvatarSettings = {
   avatarUrl: string;
   volume: number;
-  speechRate: number;
+  speechRate: number; // This is now less relevant with server-side TTS
   voiceName: string | null;
 };
