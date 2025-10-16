@@ -28,7 +28,8 @@ const AvatarDisplay = ({
     <div className="flex-1 relative flex items-center justify-center bg-gradient-to-b from-cyan-900/20 via-teal-900/10 to-transparent p-4 md:h-auto h-[40vh]">
       <div className="relative w-full h-full max-w-2xl">
         <iframe
-          src={`https://${avatarUrl}.readyplayer.me?scene=fullbody-portrait-v1`}
+          key={avatarUrl}
+          src={`https://${avatarUrl}.readyplayer.me`}
           className="w-full h-full border-0 rounded-2xl shadow-2xl"
           allow="camera; microphone; cross-origin"
           title="3D Avatar"
